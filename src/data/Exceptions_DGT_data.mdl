@@ -1,0 +1,352 @@
+##########################################################
+################ MODIFICATIONS EVAL SNBC3 ################
+##########################################################
+
+#### Modification pour tableaux de sorties ####
+
+MAT := sum (MAT[s] if MAT[s]<>0 on s)
+PMAT := sum (PMAT[s]*MAT[s] if MAT[s]<>0 on s)
+
+w_s_spb:= sum(W_S[s]*(1 + TCSE[s])*L_S[s]/L_s on s)
+w_spb := w_s_spb * L_s/L + w_se*L_se/L
+
+CL_S_bis[s] :=  CL_S[s]* PROG_L[s] 
+CL_SE_bis[s] := CL_SE[s]* PROG_L[s] 
+CL_S_bis := (sum(CL_S_bis[s] * L_S[s] on s))/L_S
+CL_SE_bis := (sum(CL_SE_bis[s] * L_SE[s] on s))/L_SE
+CL_bis  * L  := ( CL_S_bis  * L_S  + CL_SE_bis  * L_SE )
+
+##### MODIFICATION DU COUT DU CAPITAL #####
+
+@over CK[s] := PK[s] * (  R[s] - d(P)/P{-1} + Tdec[s]) if K[s] > 0
+
+##### INVESTISSEMENT ##### 
+Ibis[sne] := IA_n[sne]
+Ibis_bis[sne] := IA_n[sne]
+IMP_BUD_bis[sne] := 0
+
+# ajout des intérêts au stock de dette des ménages (uniquement pour affichage, cahier de variantes)
+# pour le GOV ils sont inclus dans le deficit qui est utilise pour calculer la dette
+DEBT_REHAB_Val_tot[h,ecl] :=  DEBT_REHAB_Val[h,ecl] 
+DEBT_NewB_Val_tot[h,ecl] :=  DEBT_NewB_Val[h,ecl] 
+DEBT_AUTO_Val_tot[h,ecl] := DEBT_AUTO_Val[h,ecl]
+
+DEBT_REHAB_Val_tot2[h,ecl] :=  DEBT_REHAB_Val[h,ecl] + DEBT_REHAB_Val[h,ecl]{-1}*R_I_REHAB[h,ecl]{-1} 
+DEBT_NewB_Val_tot2[h,ecl] := DEBT_NewB_Val[h,ecl] + DEBT_NewB_Val[h,ecl]{-1}*R_I_NewBUIL[h,ecl]{-1}  
+DEBT_AUTO_Val_tot2[h,ecl] := DEBT_AUTO_Val[h,ecl] + DEBT_AUTO_Val[h,ecl]{-1}*R_I_AUTO[h,ecl]{-1}  
+
+
+#### PRIX DES IMPORTATIONS ####
+
+YQS_SM := sum(YQS[cbienmar] on cbienmar)
+PYQS_SM := sum(YQS[cbienmar]*PYQS[cbienmar]/YQS_SM on cbienmar)
+GRPM_01:=0
+GRPM[sind]:=0
+GRPM[cservex]:=0
+GRPM[ce]:=0
+PM_n_01 := PM_01
+PM_n[cservex] :=  PM[cservex]
+PM_n[ce] := PM[ce]
+PM_n[sind] := PM[sind]
+
+
+#### TAUX DE MARGE DE THREEME V3 ####
+
+CUR_test[sne] := Y[sne] / YCAP_test[sne]
+YCAP_test[sne] := Y[sne] / 0.8 ### calibrage de ThreeME V3
+
+
+##########################################################
+############ AUTRES MODIFICATIONS DESACTIVEES ############
+##########################################################
+
+
+#### PRIX DES EXPORTATIONS ####
+
+PXD_n[c] := P 
+
+#### VOLUMES DES EXPORTATIONS ####
+
+
+PYX_des[s] := P
+
+PYX_n[s] := P
+
+PYX[s] := P
+
+YD[s] := Y[s] - YX[s]  #YD est la production vendue sur le marché domestique
+
+PYD[s] := P
+
+PYD_n[s] := P
+
+YX[s] := sum(YX[c,s] on c)   #YX est la production domestique exportée. Limite du modèle, les taux de TVA et autres taxes et subventions à la consommation sont les mêmes pour les produits consommés domestiquement et les exports
+
+
+YX[c,s] := PhiY[c,s]*XQ[c] 
+
+PXQ[c] := P
+
+
+XQ[c]*PXQ[c] := PXD[c]*XD[c] + (- POTHTD[c]  * OTHTD[c]  - PSUBD[c]  * SUBD[c]  -  (PMCD[c]  * MCD[c]  + PMTD[c]  * MTD[c]) - PENERTD[c]  * ENERTD[c])*XD[c]/QD[c] 
+
+PXQS[c] := P
+
+XQS[c] := XQ[c] + OTHTXD[c] + ENERTXD[c] + SUBXD[c] + MTXD[c] + MCXD[c]  
+
+OTHTXD[c] := @elem(TOTHTXD[c] , 2006)  * XQ[c]
+
+POTHTXD[c]  := P
+
+TOTHTXD[c] := TOTHTD[c]  # à modifier ultérieurement si données disponibles. Auquel cas il faudra créer une équation OTHTYD et OTHTYD et modifier l'équation de OTHTD
+
+ENERTXD[c] := @elem(TTICXD[c], %baseyear) * XQ[c] 
+
+PENERTXD[c] := P
+
+TTICXD[c] := TTICD[c] # à modifier ultérieurement si données disponibles Auquel cas il faudra créer une équation TTICYD et TICYD et modifier l'équation de TICD
+
+TCO_VALXD[c]*YQ[c] := TCO_VALD[c] * XQ[c] if YQ[c]>0
+
+SUBXD[c]  := @elem(TSUBXD[c] , 2006)  * XQ[c]
+
+PSUBXD[c] := P
+
+TSUBXD[c] := TSUBD[c] # à modifier ultérieurement si données disponibles. Auquel cas il faudra créer une équation TSUBYD et SUBYD et modifier l'équation de SUBD
+
+PMTXD[c] := P
+
+PMTXD[s,c] := PXD[s] where s in 14 16 17 18
+
+PMCXD[c] := P
+
+MTXD[c] := MTXD_14[c] + MTXD_16[c] + MTXD_17[c] + MTXD_18[c] 
+
+
+MTXD[s,c] := (0+(MTD[s,c]>=0)*MTD[s,c])*XQ[c]/YQ[c] if YQ[c]>0  where s in 14 16 17 18
+
+
+MCXD[c]*YQ[c] := MCD[c]*XQ[c] if YQ[c]>0
+
+
+PXD[c] := P
+
+
+##### salaires #####
+#prix de VA anticipe
+pva_e := p
+
+
+#### AJOUTS CHOCS DGT POUR CAHIER DE VARIANTES####
+
+CHOC_K := 0
+CHOC_PGF := 0 
+CHOC_L := 0
+CHOC_E := 0
+choc_fossile[ce2]:=0
+
+IMP_BUD_niv[sne]:=0
+IA_notionnel_noshock[sne]:=IA_n[sne]
+IA_notionnel[sne]:=IA_n[sne]
+IA_n_noshock[sne]:=IA_n[sne]
+IA_n_noshock_03[road] := IA_n_03[road]
+IA_n_noshock_12[road] := IA_n_12[road]
+IA_des_noshock[sne] := IA_n[sne]
+
+
+#### CORRECTION FORMULE RATIO D'UTILISATION DES CAPACITES
+phi_n_K[sne] := phi_K[sne]
+phi_n_L[sne] := phi_L[sne]
+phi_n_E[sne] := phi_E[sne]
+phi_n_MAT[sne] := phi_MAT[sne]
+
+YCAP[sne] := Y[sne] / 0.8 ### calibrage de ThreeME V3
+CUR[sne] := Y[sne] / YCAP[sne]
+
+#### arbitrage consommation en volume
+EXP_CES_VOL := sum((EXP_n[co, h] - NEXP[co, h] ) on co)
+
+MATM_des_n[cdai,sne] := MATM[cdai,sne]
+MATM_des[cdai,sne] := MATM[cdai,sne]
+MATM_des_n[cservex,sne] := MATM[cservex,sne]
+MATM_des[cservex,sne] := MATM[cservex,sne]
+EM_des_n[eno21,s] := EM[eno21,s]
+EM_des[eno21,s] := EM[eno21,s]
+CHM_des_n[cdai] := CHM[cdai]
+CHM_des[cdai] := CHM[cdai]
+CHM_des_n[cservex] := CHM[cservex]
+CHM_des[cservex] := CHM[cservex]
+CHM_des_n[cepeg] := CHM[cepeg]
+CHM_des[cepeg] := CHM[cepeg]
+GM_des_n[cdai] := GM[cdai]
+GM_des[cdai] := GM[cdai]
+GM_n[cservex] := GM[cservex]
+IAM_des_n[cdai,sne] := IAM[cdai,sne]
+IAM_des[cdai,sne] := IAM[cdai,sne]
+IAM_des_n[cservex,sne] := IAM[cservex,sne]
+IAM_des[cservex,sne] := IAM[cservex,sne]
+
+ MAT_bis_dgt[cdai,sne] := MATD[cdai,sne] + MATM[cdai,sne] 
+ verif_MAT_dgt[cdai,sne] := 0
+ MAT_bis_dgt[cservex,sne] := MATD[cservex,sne] + MATM[cservex,sne] 
+ verif_MAT_dgt[cservex,sne] := 0
+ E_bis_dgt[eno21,s] := ED[eno21,s] + EM[eno21,s]
+ verif_E_dgt[eno21,s] := 0
+ CH_bis_dgt[cdai] := CHD[cdai] + CHM[cdai]
+ verif_CH_dgt[cdai] := 0
+ CH_bis_dgt[cservex] := CHD[cservex] + CHM[cservex]
+ verif_CH_dgt[cservex] := 0
+ CH_bis_dgt[cepeg] := CHD[cepeg] + CHM[cepeg]
+ verif_CH_dgt[cepeg] := 0
+ G_bis_dgt[cdai] := GD[cdai] + GM[cdai]
+ verif_G_dgt[cdai] := 0
+ G_bis_dgt[cservex] := GD[cservex] + GM[cservex]
+ verif_G_dgt[cservex] := 0
+ IA_bis_dgt[cdai,sne] := IAD[cdai,sne] + IAM[cdai,sne]
+ verif_IA_dgt[cdai,sne] := 0
+ IA_bis_dgt[cservex,sne] := IAD[cservex,sne] + IAM[cservex,sne]
+ verif_IA_dgt[cservex,sne] := 0
+ 
+ Choc_CSC_niv[sne] := CSC_cost * EMS_CSC[sne] #ajout car variable non initialisee jusqu a present
+ Choc_DACCS_niv  := DACCS_cost * EMS_DACCS #ajout car variable non initialisee jusqu a present
+ Kexo[se23] := 0 #ajout car variable non initialisee jusqu a present
+ 
+ W_S_des[sne] := W_S[sne]
+ 
+ L_des[sne] := L[sne]
+
+ PY_des[s] := PY[s]
+ 
+ CIdgt[s] := E[s] + MAT[s]
+ PCIdgt[s] := (PE[s] * E[s] + PMAT[s] * MAT[s]) / CIdgt[s]
+ 
+ EXP_des[co,h] := EXP[co,h]
+ 
+ L_SM := L - L_20
+ W_SM * L_SM := sum(W_S[s] * L_S[s] + W_SE[s] * L_SE[s] on s in %list_sec_Market)
+#L_SM2 := sum(L[sm] on sm)
+#W_SM2 * L_SM2 := sum(w_s[sm]*L_s[sm] +w_se[sm]*L_se[sm] on sm)
+
+ PRESOC_DOM_U_TETE_DES := PRESOC_DOM_U_VAL / Un_TOT
+ PRESOC_DOM_U_VAL_DES := PRESOC_DOM_U_TETE_DES * Un_TOT
+ PRESOC_DOM_Oth_VAL_DES := PRESOC_DOM_Oth_VAL
+ 
+ X_n_des[c] := X[c]
+ X_des[c] := X[c]
+ 
+ #### VAC
+defl_Ttco[ce2] := 1
+
+DEBT_SNF_VAL[s] := 0
+DEBT_SNF_VAL := sum(DEBT_SNF_VAL[s] on s)
+R_SNF[s] := R[s]
+DEBT_SNF_ENER := sum(DEBT_SNF_VAL[se] on se)
+
+#IA_notionnel_des[sne] := IA_n[sne]
+IA_n_des[sne] := IA_n[sne]
+IMP_BUD_niv_bis[sne] := 0
+
+IA_n_bis_19 := IA_n_noshock_19
+I_MDE_notionnel_19 := I_MDE_19
+I_MDE_shock_exo_19 := 0
+IA_n_bis_20 := IA_n_noshock_20
+I_MDE_notionnel_20 := I_MDE_20
+I_MDE_shock_exo_20 := 0
+
+@over Inv_IRVE := IRVE - (1 - tdec_IRVE) * IRVE{-1}
+
+
+R_exo := 0
+
+IA_notionnel_noshock[se] := IA_n[se]
+IA_n_des[se] := IA_n[se]
+Choc_CSC_niv[se] := CSC_cost * EMS_CSC[se]
+IA_notionnel[se] := IA_n[se]
+IMP_BUD_niv_bis[se] := 0
+IMP_BUD_niv[se] := 0
+
+###MPR###
+MATM_sec[sne] := sum(MATM[cdai,sne] on cdai) + sum(MATM[cservex,sne] on cservex)
+EM_sec[s] := sum(EM[eno21,s] on eno21)
+
+@over EXP_HOUSING_Val[h, ecl] := @elem(DEBT_REHAB_Val[h, ecl]{-1} * (R_I_REHAB[h, ecl]{-1} + R_RMBS_REHAB[h, ecl]{-1}) +    R_CASH_REHAB[h, ecl] * RENOV_VAL[ecl] +  DEBT_NewB_Val[h, ecl]{-1} * (R_I_NewBUIL[h, ecl]{-1} + R_RMBS_NewBUIL[h, ecl]{-1}) +  R_CASH_NewBUIL[h, ecl] * PNewBUIL[h, ecl] * NewBUIL[h, ecl] +  PENER_BUIL[h, ecl] * ENER_BUIL[h, ecl], %baseyear) * (1 + STEADYSTATE(1, 1)) ^ (@year - %baseyear)
+
+@over DISPINC_VAL[h] := DISPINC_AI_VAL[h] - IR_VAL[h] - AIC_VAL[h] + REDIS_VAL_H + SUB_AUTO_VAL + SUB_REHAB_VAL  
+
+
+PREHAB_H01_HS := RENOV_VAL/REHAB_H01
+EXP_13_des :=  @elem(PNewBUIL_H01  , 2006)  * NewBUIL_H01  + @elem(PREHAB_H01_HS, 2006)  * REHAB_H01  + (EXP_13_OTH_Val_H01 )/ PCH_13 + choc_PAC
+
+@over EXP_13_H01  := EXPexo[13]
+
+@over R_CASH_REHAB[h,ecl]:=0.7
+
+# test PAC @over coef_choc_PAC := 1
+
+
+IMP_BUD_niv_MDE[sne] := 0
+
+#### Correction calcul des couts unitaires de production ####
+
+PE_CEE[s] := CEE[s]/(Ener[s] + 0.0001)
+PE_CEE_n[s] := CEE[s]/(E_n[s] + 0.0001)
+CU_n_des[s] := CU_n[s]
+CU_des[s] := CU[s]
+CU_n_bis[s] := CU_n[s]
+CU_bis[s] := CU[s]
+
+phi_n_k_bis[s] := (CK[s] * K_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+phi_n_l_bis[s] := (CL[s] * PROG_L[s] * L_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+phi_n_e_bis[s] := ((PE[s] + PE_CEE_n[s]) * E_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+phi_n_mat_bis[s] := (PMAT[s] * MAT_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+
+phi_k_bis[s] := (CK[s] * K[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s]) * Ener[s] + PMAT[s] * MAT[s])
+phi_l_bis[s] := (CL[s] * PROG_L[s] * L[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s]) * Ener[s] + PMAT[s] * MAT[s])
+phi_e_bis[s] := ((PEner[s] + PE_CEE[s]) * Ener[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s]) * Ener[s] + PMAT[s] * MAT[s])
+phi_mat_bis[s] := (PMAT[s] * MAT[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s]) * Ener[s] + PMAT[s] * MAT[s])
+
+PE_signal_bis[s] := 0
+PE_signal_E[s] := 0
+
+Yprod[sne] := Y[sne] ### calibrage de ThreeME V3
+
+CUR_bis[sne] := Yprod[sne]/YCAP[sne]
+
+TMD_bis[sne] := TMD_n[sne]
+
+YCAP := sum(YCAP[sne] on sne)
+CUR_bis := Y/YCAP
+CUR_test := CUR_bis
+
+#### MODIFICATION DEMANDE ENERGETIQUE DANS LES SERVICES ####
+
+#E_oth_notionnel[ster] := E_oth_n[ster]
+#E_oth_des_bis[ster] := E_oth[ster]
+E_shock_exo[ster] := 0
+
+
+#### DEFINITION DES CUR CIBLES CALES A 2019 ####
+
+CUR_cible_01 :=	0.777741577
+CUR_cible_02 :=	0.783971925
+CUR_cible_03 :=	0.76175078
+CUR_cible_04 :=	0.74254332
+CUR_cible_05 :=	0.74277388
+CUR_cible_06 :=	0.718639243
+CUR_cible_07 :=	0.806183467
+CUR_cible_08 :=	0.850908755
+CUR_cible_09 :=	0.720339859
+CUR_cible_10 :=	0.702189979
+CUR_cible_11 :=	0.713235837
+CUR_cible_12 :=	0.80404346
+CUR_cible_13 :=	0.798908128
+CUR_cible_14 :=	0.769930736
+CUR_cible_15 :=	0.755683113
+CUR_cible_16 :=	0.727553748
+CUR_cible_17 :=	1.044069802
+CUR_cible_18 :=	0.80231285
+CUR_cible_19 :=	0.805842549
+CUR_cible_20 :=	0.814447291
+CUR_cible := 0.782153515
+
+alpha_PROG_E_PE[s] := 0

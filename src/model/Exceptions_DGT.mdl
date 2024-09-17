@@ -1,0 +1,739 @@
+##########################################################
+################ MODIFICATIONS EVAL SNBC3 ################
+##########################################################
+
+
+#### Modification pour tableaux de sorties ####
+MAT = sum (MAT[s] if MAT[s]<>0 on s)
+PMAT*MAT = sum (PMAT[s]*MAT[s] if MAT[s]<>0 on s)
+
+# calcul salaire superbrut agrege
+w_s_spb  =  sum(W_S[s]*(1 + TCSE[s])*L_S[s]/L_s on s)
+w_spb = w_s_spb * L_s/L + w_se*L_se/L
+
+# calcul CL multiplié par PROG_L pour tableaux de resultats pour comparaison avec Mesange.
+CL_S_bis[s] =  CL_S[s]* PROG_L[s] if L_S[s] > 0
+CL_SE_bis[s] = CL_SE[s]* PROG_L[s] if L_SE[s] > 0
+CL_S_bis = (sum(CL_S_bis[s] * L_S[s] on s))/L_S
+CL_SE_bis = (sum(CL_SE_bis[s] * L_SE[s] on s))/L_SE
+CL_bis  * L  = ( CL_S_bis  * L_S  + CL_SE_bis  * L_SE )
+
+# ajout des intérêts au stock de dette des ménages (uniquement pour affichage, cahier de variantes)
+# pour le GOV ils sont inclus dans le deficit qui est utilise pour calculer la dette
+# pas d'accumulation des intérêts passés dans la dette pcq ils sont déduits déjà de EXP?
+
+DEBT_REHAB_Val_tot[h,ecl] = (@year > %baseyear) * ( ( 1 - R_RMBS_REHAB[h,ecl] ) * DEBT_REHAB_Val[h,ecl]{-1} +  DEBT_REHAB_Val_tot[h,ecl]{-1}*R_I_REHAB[h,ecl]{-1} + R_LOAN_REHAB[h,ecl] * PREHAB[h,ecl] * REHAB[h,ecl] )+ (@year =< %baseyear) * DEBT_REHAB_Val[h,ecl]{-1} * ( 1 + STEADYSTATE(1,1) )
+					
+DEBT_NewB_Val_tot[h,ecl] = (@year > %baseyear) * ( ( 1 - R_RMBS_NewBUIL[h,ecl] ) * DEBT_NewB_Val[h,ecl]{-1} + DEBT_NewB_Val_tot[h,ecl]{-1}*R_I_NewBUIL[h,ecl]{-1}  + R_LOAN_NewBUIL[h,ecl] * PNewBUIL[h,ecl] * NewBUIL[h,ecl] ) + (@year =< %baseyear) * DEBT_NewB_Val[h,ecl]{-1} * ( 1 + STEADYSTATE(1,1) )
+
+DEBT_AUTO_Val_tot[h,ecl] = (@year > %baseyear)*( DEBT_auto_Val[h,ecl]{-1}*(1 - R_RMBS_AUTO[h,ecl]) + DEBT_AUTO_Val_tot[h,ecl]{-1}*R_I_AUTO[h,ecl]{-1} + R_LOAN_AUTO[h,ecl]*PNewAuto[h,ecl]*NewAuto[h,ecl]*(1 - R_SUB_AUTO[h,ecl]) ) + (@year <= %baseyear)*(DEBT_auto_Val[h,ecl]{-1}*(1 + STEADYSTATE(1,1)))
+
+						  
+DEBT_REHAB_Val_tot2[h,ecl] =  DEBT_REHAB_Val[h,ecl] + DEBT_REHAB_Val[h,ecl]{-1}*R_I_REHAB[h,ecl]{-1} 
+DEBT_NewB_Val_tot2[h,ecl] = DEBT_NewB_Val[h,ecl] + DEBT_NewB_Val[h,ecl]{-1}*R_I_NewBUIL[h,ecl]{-1}  
+DEBT_AUTO_Val_tot2[h,ecl] = DEBT_AUTO_Val[h,ecl] + DEBT_AUTO_Val[h,ecl]{-1}*R_I_AUTO[h,ecl]{-1}  
+
+# Calcul de l'endettement des SNF
+@over d(R_G) = 1/8 * d(R) + (1 - 1/8) * d(R_G{-1})
+
+DEBT_SNF_VAL[s] = (1+R_SNF[s]{-1}) * DEBT_SNF_VAL[s]{-1} + PIA[s]*IA[s]
+R_SNF[s] = 1/4 * d(R[s]) + (1 - 1/4) * R_SNF[s]{-1}
+
+DEBT_SNF_VAL=sum(DEBT_SNF_VAL[s] on s)
+
+DEBT_SNF_ENER = sum(DEBT_SNF_VAL[se] on se)
+
+#### AJOUTS CHOCS DGT POUR CAHIER DE VARIANTES####
+
+ @over PROG_K[s] = PROG_K[s]{-1} * (1 + GR_PROG_K[s] + CHOC_K + CHOC_PGF)
+ @over PROG_L[s] = PROG_L[s]{-1} * (1 + GR_PROG_L[s] + CHOC_L + CHOC_PGF)
+ @over PROG_E[s] = PROG_E[s]{-1} * (1 + GR_PROG_E[s] + CHOC_E + CHOC_PGF) 
+ @over PROG_L = (sum(PROG_L[s] * L[s] on s))/L
+
+ @over Prog_L_03 = (@year<=2022) * (1 + GR_Prog_L_03 + CHOC_L + CHOC_PGF) * Prog_L_03{-1} + _
+              (@year>2022) * ( Prog_L_03{-1} * (1 + dlog(Prog_L_VP) + GR_Prog_L_03 + CHOC_L + CHOC_PGF))
+ 
+ @over PROG_K_03  = (@year<=2022) * PROG_K_03{-1}  * ( 1  + GR_PROG_K_03 + CHOC_K + CHOC_PGF) + _
+            (@year>2022) * ( Prog_K_03{-1} * (1 + dlog(Prog_K_VP) + GR_Prog_K_03 + CHOC_K + CHOC_PGF))
+ 
+ # gain de PIB 2.7
+
+##### MODIFICATION DU COUT DU CAPITAL ##### avec cette spécification, 2Mtep de plus. suppression du déséquilibre comptable
+
+@over CK[s] = PK[s] * (  R[s] - d(P)/P{-1} + Tdec[s]) if K[s] > 0
+
+
+##### AJOUT DES FACTEURS DE PROGRES TECHNIQUES DANS LES EQUATIONS DE DEMANDE DE FACTEURS ##### avec cette spécification, 4Mtep de plus.
+  
+    @over d(SUBST_K_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * (L[s]{-1}     * PROG_L[s]{-1} * CL[s]{-1} / (CU[s]{-1} * Y[s]{-1} )) _
+     -eta_K_E[s]     * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_Signal[s])/PROG_E[s]))   * (E[s]{-1} * PE[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 3) * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * (MAT[s]{-1}   * PMAT[s]{-1} / (CU[s]{-1} * Y[s]{-1}) _
+   if K_n[s] <> 0
+   
+    @over d(SUBST_E_n[s]) = _
+     -eta_K_E[s]     * d(log((PE[s] + PE_Signal[s])/PROG_E[s]) - log(CK[s]/PROG_K[s]))   * (K[s]{-1}   * CK[s]{-1}                 / (CU[s]{-1} * Y[s]{-1})) _
+     -eta_L_E[s]     * d(log((PE[s] + PE_Signal[s])/PROG_E[s]) - log(CL[s]))   * (L[s]{-1}   * PROG_L[s]{-1} * CL[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 6) * d(log((PE[s] + PE_Signal[s])/PROG_E[s]) - log(PMAT[s])) * (MAT[s]{-1} * PMAT[s]{-1}               / (CU[s]{-1} * Y[s]{-1})) _
+   if E_n[s] <> 0
+   
+    @over d(SUBST_L_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CL[s]) - log(CK[s]/PROG_K[s]))                  * (K[s]{-1} * CK[s]{-1}                          / (CU[s]{-1} * Y[s]{-1})) _
+     -eta_L_E[s]     * d(log(CL[s]) - log((PE[s] + PE_Signal[s])/PROG_E[s])) * (E[s]{-1} * PE[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 5) * d(log(CL[s]) - log(PMAT[s]))                * (MAT[s]{-1} * PMAT[s]{-1}                      / (CU[s]{-1} * Y[s]{-1})) _
+   if L_n[s] <> 0
+   
+    @over d(SUBST_MAT_n[s]) = _
+     -ES_KLEM($s, 3) * d(log(PMAT[s]) - log(CK[s]/PROG_K[s]))                * (K[s]{-1} * CK[s]{-1}                          / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 5) * d(log(PMAT[s]) - log(CL[s]))                * (L[s]{-1} * PROG_L[s]{-1} * CL[s]{-1}          / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 6) * d(log(PMAT[s]) - log((PE[s] + PE_Signal[s])/PROG_E[s])) * (E[s]{-1} * PE[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+   if MAT_n[s] <> 0
+   
+    @over d(SUBST_K_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * (L[s]{-1}     * PROG_L[s]{-1} * CL[s]{-1} / (CU[s]{-1} * Y[s]{-1} )) _
+     -eta_K_E[s]     * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_Signal[s])/PROG_E[s]))   * (E[s]{-1} * PE[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 3) * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * (MAT[s]{-1}   * PMAT[s]{-1} / (CU[s]{-1} * Y[s]{-1}) _
+   if K_n[s] <> 0
+   
+ @over d(SUBST_K_NE_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * (L[s]{-1}     * PROG_L[s]{-1} * CL[s]{-1} / (CU[s]{-1} * Y[s]{-1} )) _
+     -0     * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_signal[s])/PROG_E[s]))   * (E[s]{-1} * PE[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+     -ES_KLEM($s, 3) * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * (MAT[s]{-1}   * PMAT[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+   if K_n[s] <> 0
+
+ @over d(SUBST_K_E_n[s]) = _
+     -0 * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * (L[s]{-1}     * PROG_L[s]{-1} * CL[s]{-1} / (CU[s]{-1} * Y[s]{-1} )) _
+     -eta_K_E[s]      * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_signal[s])/PROG_E[s]))   * (E[s]{-1} * PE[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+     -0 * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * (MAT[s]{-1}   * PMAT[s]{-1} / (CU[s]{-1} * Y[s]{-1})) _
+   if K_n[s] <> 0
+   
+#gain de PIB : 2.7 
+#### MODIFICATION DE LA REGLE DE TAYLOR #####
+
+@over d(R_DIR) = 1* d(infl_FR) + d(R_ADD) + (@year>2022) * (- 0 * d(Unr_tot) + 0* d(infl_FR) )
+# peu changement
+@over d(R_e) = 0.05 * d(R_e{-1}) + 0.65 * d(R{-1}) + 0.3 * d(R_n)
+
+#@over R  = 0.8 * R_n  + ( 1  - 0.8 )  * ( R{-1}  + d(R_e) )
+#ajout d'un choc de taux d'interet.
+@over R  = 1 * R_n  + ( 1  - 1 )  * ( R(- 1)  + d(R_e) ) + R_exo
+
+#gain de PIB : 3.3
+##### INVESTISSEMENT #####
+
+# SECTEURS NON ENERGETIQUES
+
+#Réécriture du choc CSC en niveau
+Choc_CSC_niv[sne] = CSC_cost * EMS_CSC[sne] #attention dans l'utilisation de ce type de choc : l'unité n'est pas la même que celle de la variable dans laquelle il intervient ensuite (ici CO2 contre euros pour l'investissement) 
+
+# Investissement notionnel  sans choc
+d(log(IA_notionnel_noshock[sne])) = dlog(Y[sne]) + d(SUBST_K[sne]) - dlog(PROG_K[sne])  if IA_n[sne] <> 0 where sne in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20
+
+# Investissement notionnel avec le choc en niveau
+IA_notionnel[sne] = IA_notionnel_noshock[sne] + (@year > 2019) * (Choc_CSC_niv[sne]) if IA_n[sne] <> 0 
+
+# Investissement observé 
+d(log(IA_n_des[sne]))  = d(IMP_BUD_niv_bis[sne]) + ( ADJUST(1  , 1)  * dlog(IA_n_des[sne]{-1})  + 1.8  * dlog(Y[sne]) + 0.28  * ( log(IA_notionnel[sne]{-1}) + IMP_BUD_niv_bis[sne]{-1} - log(IA_n_des[sne]{-1}) )  + ADJUST(1, 4) * 0 * d(SUBST_K[sne]) ) if IA_n[sne] <> 0 
+@over d(log(IA_n[sne])) = ( @year <= 2019 )  * ( ( IAexo[sne] > 0 )  * ( dlog(IAexo[sne]) ) )  + ( @year > 2019 )  * (d(log(IA_n_des[sne]))) if IA_n[sne] <> 0 
+
+# stock de capital notionnel
+@over K_n[sne] = (1 - Tdec[sne]) * K_n[sne]{-1} + IA_notionnel[sne] + IMP_BUD_niv[sne] + IMP_BUD_niv_MDE[sne] if K[sne] <> 0 where sne in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20
+
+
+# exception secteur 19 (chocs specifiques)
+
+@over d(log(IA_notionnel_noshock_19)) = d(log(Y_19)) + ( 1  - AME_renov_19 ) * d(SUBST_K_19) - d(log(PROG_K_19))  + AME_renov_19 * ( d(SUBST_K_NE_19) )
+
+@over d(log(IA_n_des_19))  = d(IMP_BUD_niv_bis_19) + ( ADJUST(1  , 1)  * dlog(IA_n_des_19{-1})  + 1.8  * dlog(Y_19) + 0.28  * ( log(IA_notionnel_19{-1}) + IMP_BUD_niv_bis_19{-1} - log(IA_n_des_19{-1}) )  + ADJUST(1, 4) *0* AME_renov_19 * d(SUBST_K_19) + (1- AME_renov_19) * ( 0*d(SUBST_K_NE_19)) ) if IA_n_19 <> 0 
+
+d(log(IA_n_bis_19)) = ( @year <= 2019 )  * ( ( IAexo_19 > 0 )  * ( dlog(IAexo_19) ) )  + ( @year > 2019 )  * (d(log(IA_n_des_19)))
+
+# gain de PIB : 3.5
+# investissements dans les infrastructures de recharge de VE
+@over d(log(Inv_IRVE)) = d(log(Auto_elec))
+@over IRVE = (1 - tdec_IRVE) * IRVE{-1} + Inv_IRVE
+
+# investissements énergétiques
+d(log(I_MDE_notionnel_19)) = d(log(Y_19)) - d(log(PROG_K_19)) + d(SUBST_K_E_19)
+@over d(log(I_MDE_19)) = AME_renov_19  * ( d(I_MDE_shock_exo_19) + ADJUST(1  , 1)  * dlog(I_MDE_19{-1})  + 1.8  * dlog(Y_19)  + 0.28 * (log(I_MDE_notionnel_19{-1}) + I_MDE_shock_exo_19{-1} - log(I_MDE_19{-1}))  + ADJUST(1  , 4)  * 0 * d(SUBST_K_E_19)) + (1 - AME_renov_19)  * d(log(I_MDE_exo_19))
+
+@over IA_n_19 = IA_n_bis_19 + (@year > 2019) * ((I_MDE_19-@elem(I_MDE_19, 2018)) + (Inv_IRVE-@elem(Inv_IRVE, 2018)) + sobre_19 * IA_n_19{-1})
+# est-ce qu'il est volontaire de considerer que la difference de I_MDE qu'a partir de 2018. AME_renov = 0 depuis 2016
+
+# exception secteur 20 (chocs specifiques)
+@over K_NE_n_20 = (@year<= 2019 )*(K_n_20 > 0)*K_NE_n_20{-1}*(K_n_20/K_n_20{-1})+ (@year>2019)*(K_n_20 - K_E_n_20) 
+@over K_E_n_20 = (@year<= 2019 )*(K_n_20 > 0)*K_E_n_20{-1}*(K_n_20/K_n_20{-1})+ (@year>2019)*(K_E_n_20{-1}*(1 - tdec_20) + I_MDE_20)    
+
+@over d(log(IA_notionnel_noshock_20)) = d(log(Y_20)) + ( 1  - AME_renov_20 ) * d(SUBST_K_20) - d(log(PROG_K_20))  + AME_renov_20 * ( d(SUBST_K_NE_20) )
+@over d(log(IA_n_des_20))  = d(IMP_BUD_niv_bis_20) + ( ADJUST(1  , 1)  * dlog(IA_n_des_20{-1})  + 1.8  * dlog(Y_20) + 0.28  * ( log(IA_notionnel_20{-1} + Choc_DACCS_niv{-1}) + IMP_BUD_niv_bis_20{-1} - log(IA_n_des_20{-1}) )  + ADJUST(1, 4) *0* AME_renov_20 * d(SUBST_K_20) + (1- AME_renov_20) * ( 0*d(SUBST_K_NE_20)) ) if IA_n_20 <> 0 
+
+# Reecriture du choc en niveau
+
+Choc_DACCS_niv  = DACCS_cost * EMS_DACCS  
+d(log(IA_n_bis_20)) = ( @year <= 2019 )  * ( ( IAexo_20 > 0 )  * ( dlog(IAexo_20) ) )  + ( @year > 2019 )  * (d(log(IA_n_des_20)))
+
+# Integration des chocs en niveau
+d(log(I_MDE_notionnel_20)) = d(log(Y_20)) - d(log(PROG_K_20)) + d(SUBST_K_E_20)
+@over d(log(I_MDE_20)) = AME_renov_20  * (d(I_MDE_shock_exo_20) + ADJUST(1  , 1)  * dlog(I_MDE_20{-1})  + 1.8  * dlog(Y_20)  + 0.28 * (log(I_MDE_notionnel_20{-1}) + I_MDE_shock_exo_20{-1} - log(I_MDE_20{-1}))  + ADJUST(1  , 4)  * 0 * d(SUBST_K_E_20)) + (1 - AME_renov_20)  * d(log(I_MDE_exo_20))
+
+@over IA_n_20 = IA_n_bis_20 + (@year > 2019) * ((I_MDE_20-@elem(I_MDE_20, 2018)) + (INV_Road-@elem(INV_Road, 2018)))
+
+# exceptions transport marchandises
+# équation ADEME à réintégrer
+@over dlog(K_n[road])  = ( @year <= 2019 )  * ( K_n[road] > 0 )  * dlog(K[road])  + ( @year > 2019 ) * dlog(K[road] )
+
+# isolation des dynamiques de l'investissement en biens 03 et 12 des secteurs [road]
+dlog(IA_n_noshock_03[road]) = dlog(IA_n[road])
+dlog(IA_n_noshock_12[road]) = dlog(IA_n[road])
+#gain de PIB : 3.4
+ # SECTEURS ENERGETIQUES
+ 
+d(log(IA_notionnel_noshock[se])) = dlog(Y[se]) + d(SUBST_K[se]) - dlog(PROG_K[se])  if IA_n[se] <> 0 
+d(log(IA_n_des[se]))  = d(IMP_BUD_niv_bis[se]) + ( ADJUST(1  , 1)  * dlog(IA_n_des[se]{-1})  + 1.8  * dlog(Y[se]) + 0.28  * ( log(IA_notionnel[se]{-1}) + IMP_BUD_niv_bis[se]{-1} - log(IA_n_des[se]{-1}) )  + ADJUST(1, 4) * 0 * d(SUBST_K[se]) ) if IA_n[se] <> 0 
+#Réécriture du choc CSC en niveau
+Choc_CSC_niv[se] = CSC_cost * EMS_CSC[se] #attention dans l'utilisation de ce type de choc : l'unité n'est pas la même que celle de la variable dans laquelle il intervient ensuite (ici CO2 contre euros pour l'investissement) 
+# Investissement notionnel avec le choc en niveau
+IA_notionnel[se] = IA_notionnel_noshock[se] + (@year > 2019) * (Choc_CSC_niv[se]) if IA_n[se] <> 0 
+@over d(log(IA_n[se])) = ( @year <= 2019 )  * ( ( IAexo[se] > 0 )  * ( dlog(IAexo[se]) ) )  + ( @year > 2019 )  * (d(log(IA_n_des[se]))) if IA_n[se] <> 0 
+# stock de capital notionnel
+@over K_n[se] = (1 - Tdec[se]) * K_n[se]{-1} + IA_notionnel[se] + IMP_BUD_niv[se] if K[se] <> 0 
+#gain de PIB : 3
+# exogénéisation des investissements en biens 03 et 12 des secteurs [road]
+#@over IA_n[road] = IA_n_noshock[road] + (@year>2019)*( - IA_n_noshock_03[road] + IA_n_03[road] - IA_n_noshock_12[road] + IA_n_12[road] + IMP_BUD_niv[road] + Choc_CSC_niv[road])
+#équilibre comptable OK
+#### PRIX DES IMPORTATIONS ####
+
+# On remplace: Price/equation 5.40PM[c] = TC*PWD[c] if M[c] <> 0
+
+# Reproduction des dynamiques de Mésange
+
+# biens agricoles
+d(log(PM_n_01)) = (0.32 * dlog(TC * PWD_01) + 0.10 * dlog(TC * PWD_01{-1}) + 0.46 * dlog(PYQS_01) - 0.32 * (log(PM_n_01{-1}) - 0.75 * log(PYQS_01{-1}) - (1-0.75) * log(TC * PWD_01{-1}))) if PYQS_01 <>0
+
+@over PM_01 = (TC * PWD_01)*(@year<=2019) + ((1+d(PM_n_01)/PM_n_01{-1})*PM_01{-1})*(@year>2019) #if PM_01_n{-1} <> 0
+
+# biens manufactures (industrie hors construction)
+   
+ d(log(PM_n[sind])) = (0.32 * dlog(TC * PWD[sind]) + 0.10 * dlog(TC * PWD[sind]{-1}) + 0.46 * dlog(PYQS[sind]) _
+   - 0.32 * ( log(PM_n[sind]{-1}) - 0.75 * log(PYQS[sind]{-1}) - (1-0.75) * log(TC * PWD[sind]{-1}))) 
+  
+  @over PM[sind] = (TC * PWD[sind])*(@year<=2019) + ((1+d(PM_n[sind])/PM_n[sind]{-1})*PM[sind]{-1})*(@year>2019) #if PM_n[sind]{-1}<>0
+# on enleve la constante et le terme pdm_em de l équation
+
+# services exposes (transports sauf 15 et business services? )
+
+d(log(PM_n[cservex])) = (0.55 * dlog(PYQS[cservex]) + 0.15 * dlog(PYQS[cservex]{-1}) - 0.26 * ( log(PM_n[cservex]{-1}) - 0.75 * log(PYQS[cservex]{-1}) - (1-0.75) * log(TC * PWD[cservex]{-1}))) if PYQS[cservex]<>0
+
+@over PM[cservex] = (TC * PWD[cservex])*(@year<=2019) + ((1+d(PM_n[cservex])/PM_n[cservex]{-1})*PM[cservex]{-1})*(@year>2019) #if PM_n[cservex]{-1}<>0
+
+# biens energetiques
+# production du secteur marchand en valeur
+YQS_SM = sum(YQS[cbienmar] on cbienmar)
+# prix production du secteur marchand
+PYQS_SM = sum(YQS[cbienmar]*PYQS[cbienmar]/YQS_SM on cbienmar)
+
+d(log(PM_n[ce]))=(0.74 * dlog(TC * PWD[ce]) - 0.97 * (log(PM_n[ce]{-1}) - 0.17 * log(PYQS_SM{-1}) - (1-0.17)*log(TC * PWD[ce]{-1})))
+ @over PM[ce] = (TC * PWD[ce])*(@year<=2019) + ((1+d(PM_n[ce])/PM_n[ce]{-1})*PM[ce]{-1})*(@year>2019) #if PM_n[ce]{-1}<>0
+# comme on prend le prix du baril pour tous les secteurs et que les séries de PM par secteur sont identiques jusqu en 2006 alors on a des PM identiques pour tous les secteurs nrj.
+
+
+#### VOLUMES DES IMPORTATIONS ####
+
+#consommations intermédiaires non-énergétiques
+#relation de long terme modifiée de manière à converger vers la propension moyenne à importer
+	#industrie ok 
+
+  d(log(MATM_des_n[cdai,sne])) = 1.55*dlog(QD[cdai]) - 0.41*(log(MATM_des_n[cdai,sne]{-1}) - log(MAT[cdai,sne]{-1}) + 0.48*(log(PMATM[cdai]{-1})-log(PMATD[cdai]{-1}))) if MATM_des_n[cdai,sne] <> 0
+
+ MATM_des[cdai,sne]  = (CIMexo[cdai,sne])*(@year<=2019) _
+                        + ((MATM_des[cdai,sne]{-1}*(1+d(MATM_des_n[cdai,sne])/MATM_des_n[cdai,sne]{-1})>0)*(MATM_des[cdai,sne]{-1}*(1+d(MATM_des_n[cdai,sne])/MATM_des_n[cdai,sne]{-1}))+(MATM_des[cdai,sne]{-1}*(1+d(MATM_des_n[cdai,sne])/MATM_des_n[cdai,sne]{-1})<=0)*0.00001)*(@year>2019) if MATM_des[cdai,sne] <> 0
+ @over MATM[cdai,sne] = (CIMexo[cdai,sne])*(@year<=2019) _
+                        + ((MAT[cdai,sne] - MATM_des[cdai,sne]>0)*(MATM_des[cdai,sne])+(MAT[cdai,sne] - MATM_des[cdai,sne]<=0)*(MAT[cdai,sne] -0.00001))*(@year>2019) if MATM[cdai,sne] <> 0
+ @over MATD[cdai,sne]  = (CIDexo[cdai,sne])*(@year<=2019) _
+                        + ((MAT[cdai,sne]-MATM[cdai,sne]>0)*(MAT[cdai,sne]-MATM[cdai,sne])+(MAT[cdai,sne]-MATM[cdai,sne]<=0)*0.0001)*(@year>2019) if MATD[cdai,sne] <> 0
+
+ MAT_bis_dgt[cdai,sne] = MATD[cdai,sne] + MATM[cdai,sne] 
+ verif_MAT_dgt[cdai,sne] = MAT[cdai,sne] - MAT_bis_dgt[cdai,sne] 
+
+		#dans AME-AMS
+ @over MATD_12_13  = ( CIDexo_12_13 )  * ( @year <= 2019 )  + ( MATD_12_13{-1} * ( 1  + ( MAT_12_13 > 0 )  * ( d(MAT_12_13)  / MAT_12_13{-1}  + d(SUBST_MATD_12_13) ) ) - Prop_M_PAC * d(choc_PAC) * MATD_12_13{-1}/MAT_12_13{-1} ) * ( @year > 2019 )   
+ @over MATM_12_13  = (CIMexo_12_13)*(@year<=2019) _
+                        + ((MAT_12_13-MATD_12_13>0)*(MAT_12_13-MATD_12_13)+(MAT_12_13-MATD_12_13<=0)*0.0001)*(@year>2019) if MATM_12_13 <> 0
+ @over MATD_12_03  = (CIDexo_12_03)*(@year<=2019) + _
+                         (MATD_12_03{-1}*(1+(MAT_12_03>0)*(d(MAT_12_03)/MAT_12_03{-1} + d(SUBST_MATD_12_03)))-(1-AME_battery)*(CHD_03/CH_03)*d(Pbattery* Newauto_elec[h]/1000)) *(@year>2019) if MATD_12_03 <> 0
+ @over MATM_12_03  = (CIMexo_12_03)*(@year<=2019) _
+                        + ((MAT_12_03-MATD_12_03>0)*(MAT_12_03-MATD_12_03)+(MAT_12_03-MATD_12_03<=0)*0.0001)*(@year>2019) if MATM_12_03 <> 0
+
+	#services
+ d(log(MATM_des_n[cservex,sne])) = 0.25*dlog(MATM_des_n[cservex,sne]{-1}) + 1.18*dlog(QD[cservex]) - 0.34*d(log(PMATM[cservex]{-1})-log(PMATD[cservex]{-1})) - 0.49*(log(MATM_des_n[cservex,sne]{-1}) - log(MAT[cservex,sne]{-1}) + 0.69*(log(PMATM[cservex]{-1})-log(PMATD[cservex]{-1}))) if MATM_des_n[cservex,sne] <> 0
+ MATM_des[cservex,sne] = (CIMexo[cservex,sne])*(@year<=2019) _
+                        + ((MATM_des[cservex,sne]{-1}*(1+d(MATM_des_n[cservex,sne])/MATM_des_n[cservex,sne]{-1})>0)*(MATM_des[cservex,sne]{-1}*(1+d(MATM_des_n[cservex,sne])/MATM_des_n[cservex,sne]{-1}))+(MATM_des[cservex,sne]{-1}*(1+d(MATM_des_n[cservex,sne])/MATM_des_n[cservex,sne]{-1})<=0)*0.00001)*(@year>2019) if MATM_des[cservex,sne] <> 0
+ @over MATM[cservex,sne] = (CIMexo[cservex,sne])*(@year<=2019) _
+                        + ((MAT[cservex,sne] - MATM_des[cservex,sne]>0)*(MATM_des[cservex,sne])+(MAT[cservex,sne] - MATM_des[cservex,sne]<=0)*(MAT[cservex,sne] -0.00001))*(@year>2019) if MATM[cservex,sne] <> 0
+ @over MATD[cservex,sne]  = (CIDexo[cservex,sne])*(@year<=2019) _
+                        + ((MAT[cservex,sne]-MATM[cservex,sne]>0)*(MAT[cservex,sne]-MATM[cservex,sne])+(MAT[cservex,sne]-MATM[cservex,sne]<=0)*0.0001)*(@year>2019) if MATD[cservex,sne] <> 0
+
+ MAT_bis_dgt[cservex,sne] = MATD[cservex,sne] + MATM[cservex,sne] 
+ verif_MAT_dgt[cservex,sne] = MAT[cservex,sne] - MAT_bis_dgt[cservex,sne]
+
+#consommations intermédiaires énergétiques
+# attention certains EM sont exogenes: EM_24_01, ..., EM_24_06, EM_24_09, ...EM_24_20, EM_24_2303, EM_24_2308 car elles sont égales à 0
+
+# ne tourne pas pour le bien 21 (charbon), on l exclut de la modification
+# creation d une liste de biens energetiques sans bien 21 %list_com_e_no2
+
+  d(log(EM_des_n[eno21,s])) = 1.15*d(log(QD[eno21])) - 0.96*(log(EM_des_n[eno21,s]{-1}) - log(E[eno21,s]{-1}) ) if EM_des_n[eno21,s] <> 0 
+ EM_des[eno21,s] = ((E[eno21,s]-ED[eno21,s]>0)*(E[eno21,s]-ED[eno21,s])+(E[eno21,s]-ED[eno21,s]<=0)*0.0001)*(@year<=2019) _
+                        + ((EM_des[eno21,s]{-1}*(1+d(EM_des_n[eno21,s])/EM_des_n[eno21,s]{-1})>0)*(EM_des[eno21,s]{-1}*(1+d(EM_des_n[eno21,s])/EM_des_n[eno21,s]{-1}))+(EM_des[eno21,s]{-1}*(1+d(EM_des_n[eno21,s])/EM_des_n[eno21,s]{-1})<=0)*0.00001)*(@year>2019) if EM_des[eno21,s] <> 0
+ @over EM[eno21,s] = ((E[eno21,s]-ED[eno21,s]>0)*(E[eno21,s]-ED[eno21,s])+(E[eno21,s]-ED[eno21,s]<=0)*0.0001)*(@year<=2019) _
+                        + ((E[eno21,s]-EM_des[eno21,s]>0)*(EM_des[eno21,s])+(E[eno21,s]-EM_des[eno21,s]<=0)*(E[eno21,s] -0.00001))*(@year>2019) if EM[eno21,s] <> 0
+ @over ED[eno21,s]  = ((1+d(E[eno21,s])/E[eno21,s]{-1}+d(SUBST_ED[eno21,s]))*ED[eno21,s]{-1})*(@year<=2019) _
+                        + ((E[eno21,s]-EM[eno21,s]>0)*(E[eno21,s]-EM[eno21,s])+(E[eno21,s]-EM[eno21,s]<=0)*0.0001)*(@year>2019) if ED[eno21,s] <> 0
+
+ E_bis_dgt[eno21,s] = ED[eno21,s] + EM[eno21,s]
+ verif_E_dgt[eno21,s] = E[eno21,s] - E_bis_dgt[eno21,s]
+
+
+#deux dernières équations à clarifier, desactivees pour l instant
+# controle comptable OK
+#conso des ménages
+	#dai
+ d(log(CHM_des_n[cdai])) = 1.55*dlog(QD[cdai]) - 0.41*(log(CHM_des_n[cdai]{-1}) - log(EXP[cdai]{-1}) + 0.48*(log(PCHM[cdai]{-1})-log(PCHD[cdai]{-1}))) if CHM[cdai] <> 0
+
+ CHM_des[cdai] = CHM_des[cdai]{-1}*((1 + (QMexo[cdai]>0)*(d(QMexo[cdai])/QMexo[cdai]{-1})))*(@year<=2019) _
+                        + ((CHM_des[cdai]{-1}*(1+d(CHM_des_n[cdai])/CHM_des_n[cdai]{-1})>0)*(CHM_des[cdai]{-1}*(1+d(CHM_des_n[cdai])/CHM_des_n[cdai]{-1}))+(CHM_des[cdai]{-1}*(1+d(CHM_des_n[cdai])/CHM_des_n[cdai]{-1})<=0)*0.00001)*(@year>2019) if CHM[cdai] <> 0
+ @over CHM[cdai] = CHM[cdai]{-1}*((1 + (QMexo[cdai]>0)*(d(QMexo[cdai])/QMexo[cdai]{-1})))*(@year<=2019) _
+                        + ((EXP[cdai] - CHM_des[cdai]>0)*(CHM_des[cdai])+(EXP[cdai] - CHM_des[cdai]<=0)*(EXP[cdai] -0.00001))*(@year>2019) if CHM[cdai] <> 0
+ @over CHD[cdai]  = ((EXP[cdai]-CHM[cdai] > 0) * (EXP[cdai] - CHM[cdai]) + (EXP[cdai] - CHM[cdai] =< 0) * (0.00001))*(@year<=2019) _
+                    + ((EXP[cdai] - CHM[cdai]>0)*(EXP[cdai] - CHM[cdai])+(EXP[cdai] - CHM[cdai]<=0)*0.00001)*(@year>2019)
+
+ CH_bis_dgt[cdai] = CHD[cdai] + CHM[cdai]
+ verif_CH_dgt[cdai] = EXP[cdai] - CH_bis_dgt[cdai]
+
+	#services
+  d(log(CHM_des_n[cservex])) = 0.25*dlog(CHM_des_n[cservex]{-1}) + 1.18*dlog(QD[cservex]) -0.43*d(log(PCHM[cservex]{-1})-log(PCHD[cservex]{-1})) - 0.49*(log(CHM_des_n[cservex]{-1}) - log(EXP[cservex]{-1}) + 0.69*(log(PCHM[cservex]{-1})-log(PCHD[cservex]{-1}))) if CHM_des_n[cservex] <> 0
+
+ CHM_des[cservex] = CHM_des[cservex]{-1}*((1 + (QMexo[cservex]>0)*(d(QMexo[cservex])/QMexo[cservex]{-1})))*(@year<=2019) _
+                        + ((CHM_des[cservex]{-1}*(1+d(CHM_des_n[cservex])/CHM_des_n[cservex]{-1})>0)*(CHM_des[cservex]{-1}*(1+d(CHM_des_n[cservex])/CHM_des_n[cservex]{-1}))+(CHM_des[cservex]{-1}*(1+d(CHM_des_n[cservex])/CHM_des_n[cservex]{-1})<=0)*0.00001)*(@year>2019) if CHM_des[cservex] <> 0
+ @over CHM[cservex] = CHM[cservex]{-1}*((1 + (QMexo[cservex]>0)*(d(QMexo[cservex])/QMexo[cservex]{-1})))*(@year<=2019) _
+                        + ((EXP[cservex] - CHM_des[cservex]>0)*(CHM_des[cservex])+(EXP[cservex] - CHM_des[cservex]<=0)*(EXP[cservex] -0.00001))*(@year>2019) if CHM[cservex] <> 0
+ @over CHD[cservex]  = ((EXP[cservex]-CHM[cservex] > 0) * (EXP[cservex] - CHM[cservex]) + (EXPexo[cservex] - CHM[cservex] =< 0) * (0.00001))*(@year<=2019) _
+                    + ((EXP[cservex] - CHM[cservex]>0)*(EXP[cservex] - CHM[cservex])+(EXP[cservex] - CHM[cservex]<=0)*0.00001)*(@year>2019)
+
+ CH_bis_dgt[cservex] = CHD[cservex] + CHM[cservex]
+ verif_CH_dgt[cservex] = EXP[cservex] - CH_bis_dgt[cservex]
+
+	#énergies
+  d(log(CHM_des_n[cepeg])) = 1.15*dlog(QD[cepeg]) - 0.96*(log(CHM_des_n[cepeg]{-1}) - log(EXP[cepeg]{-1}) ) if CHM_des_n[cepeg] <> 0
+
+ CHM_des[cepeg] = ((EXP[cepeg]  - CHD[cepeg]>0)  * (EXP[cepeg] - CHD[cepeg])  + (EXP[cepeg]  - CHD[cepeg]<=0)  * (0.0001))*(@year<=2019) _
+                        + ((CHM_des[cepeg]{-1}*(1+d(CHM_des_n[cepeg])/CHM_des_n[cepeg]{-1})>0)*(CHM_des[cepeg]{-1}*(1+d(CHM_des_n[cepeg])/CHM_des_n[cepeg]{-1}))+(CHM_des[cepeg]{-1}*(1+d(CHM_des_n[cepeg])/CHM_des_n[cepeg]{-1})<=0)*0.00001)*(@year>2019) if CHM_des[cepeg] <> 0
+ @over CHM[cepeg] = ((EXP[cepeg]  - CHD[cepeg]>0)  * (EXP[cepeg] - CHD[cepeg])  + (EXP[cepeg]  - CHD[cepeg]<=0)  * (0.0001))*(@year<=2019) _
+                        + ((EXP[cepeg] - CHM_des[cepeg]>0)*(CHM_des[cepeg])+(EXP[cepeg] - CHM_des[cepeg]<=0)*(EXP[cepeg] -0.00001))*(@year>2019) if CHM[cepeg] <> 0
+ @over CHD[cepeg]  = ((1+((d(EXP[cepeg]))/(EXP[cepeg]{-1}) + d(SUBST_CHD[cepeg]))) * CHD[cepeg]{-1})*(@year<=2019) _
+                    + ((EXP[cepeg] - CHM[cepeg]>0)*(EXP[cepeg] - CHM[cepeg])+(EXP[cepeg] - CHM[cepeg]<=0)*0.00001)*(@year>2019) if CHD[cepeg] <> 0
+
+ CH_bis_dgt[cepeg] = CHD[cepeg] + CHM[cepeg]
+ verif_CH_dgt[cepeg] = EXP[cepeg] - CH_bis_dgt[cepeg]
+
+#conso publique
+	#dai
+  d(log(GM_des_n[cdai])) = 1.55*dlog(QD[cdai]) - 0.41*(log(GM_des_n[cdai]{-1}) - log(EXPG[cdai]{-1}) + 0.48*(log(PGM[cdai]{-1})-log(PGD[cdai]{-1}))) if GM_des_n[cdai] <> 0
+
+ GM_des[cdai] = GM_des[cdai]{-1}*((1 + (QMexo[cdai]>0)*(d(QMexo[cdai])/QMexo[cdai]{-1})))*(@year<=2019) _
+                        + ((GM_des[cdai]{-1}*(1+d(GM_des_n[cdai])/GM_des_n[cdai]{-1})>0)*(GM_des[cdai]{-1}*(1+d(GM_des_n[cdai])/GM_des_n[cdai]{-1}))+(GM_des[cdai]{-1}*(1+d(GM_des_n[cdai])/GM_des_n[cdai]{-1})<=0)*0.00001)*(@year>2019) if GM_des[cdai] <> 0
+ @over GM[cdai] = GM[cdai]{-1}*((1 + (QMexo[cdai]>0)*(d(QMexo[cdai])/QMexo[cdai]{-1})))*(@year<=2019) _
+                        + ((EXPG[cdai]-GM_des[cdai]>0)*(GM_des[cdai])+(EXPG[cdai]-GM_des[cdai]<=0)*(EXPG[cdai]-0.00001))*(@year>2019) if GM[cdai] <> 0
+ @over GD[cdai]  = (EXPG[cdai] - GM[cdai]>0)*(EXPG[cdai] - GM[cdai])+(EXPG[cdai] - GM[cdai]<=0)*0.00001
+
+ G_bis_dgt[cdai] = GD[cdai] + GM[cdai]
+ verif_G_dgt[cdai] = EXPG[cdai] - G_bis_dgt[cdai]
+
+	#services
+  d(log(GM_n[cservex])) = 0.25*dlog(GM_n[cservex]{-1}) + 1.18*dlog(QD[cservex]) - 0.34*(log(PGM[cservex]{-1})-log(PGD[cservex]{-1})) - 0.49*(log(GM_n[cservex]{-1}) - log(EXPG[cservex]{-1}) + 0.69*(log(PGM[cservex]{-1})-log(PGD[cservex]{-1}))) if GM_n[cservex] <> 0
+
+ @over GM[cservex] = GM[cservex]{-1}*((1 + (QMexo[cservex]>0)*(d(QMexo[cservex])/QMexo[cservex]{-1})))*(@year<=2019) _
+                        + ((GM[cservex]{-1}*(1+d(GM_n[cservex])/GM_n[cservex]{-1})>0)*(GM[cservex]{-1}*(1+d(GM_n[cservex])/GM_n[cservex]{-1}))+(GM[cservex]{-1}*(1+d(GM_n[cservex])/GM_n[cservex]{-1})<=0)*0.00001)*(@year>2019) if GM[cservex] <> 0
+ @over GD[cservex]  = (EXPG[cservex] - GM[cservex]>0)*(EXPG[cservex] - GM[cservex])+(EXPG[cservex] - GM[cservex]<=0)*0.00001
+
+ G_bis_dgt[cservex] = GD[cservex] + GM[cservex]
+ verif_G_dgt[cservex] = EXPG[cservex] - G_bis_dgt[cservex]
+
+	#énergies
+#Il n y a pas d importations de consommations publiques énergétiques
+
+
+#investissement
+	#dai
+d(log(IAM_des_n[cdai,sne])) = 1.55*dlog(QD[cdai]) - 0.41*(log(IAM_des_n[cdai,sne]{-1}) - log(IA_n[cdai,sne]{-1}) + 0.48*(log(PIAM[cdai]{-1})-log(PIAD[cdai]{-1}))) if IAM_des_n[cdai,sne] <> 0
+
+ IAM_des[cdai,sne] = IAM_des[cdai,sne]{-1}*((1 + (QMexo[cdai]>0)*(d(QMexo[cdai])/QMexo[cdai]{-1})))*(@year<=2019) + ((IAM_des[cdai,sne]{-1}*(1+d(IAM_des_n[cdai,sne])/IAM_des_n[cdai,sne]{-1})>0)*(IAM_des[cdai,sne]{-1}*(1+d(IAM_des_n[cdai,sne])/IAM_des_n[cdai,sne]{-1}))+(IAM_des[cdai,sne]{-1}*(1+d(IAM_des_n[cdai,sne])/IAM_des_n[cdai,sne]{-1})<=0)*0.00001)*(@year>2019) if IAM_des[cdai,sne] <> 0
+ 
+ @over IAM[cdai,sne] = IAM[cdai,sne]{-1}*((1 + (QMexo[cdai]>0)*(d(QMexo[cdai])/QMexo[cdai]{-1})))*(@year<=2019) + ((IA_n[cdai,sne] - IAM_des[cdai,sne]>0)*(IAM_des[cdai,sne])+(IA_n[cdai,sne] - IAM_des[cdai,sne]<=0)*(IA_n[cdai,sne]-0.00001))*(@year>2019) if IAM[cdai,sne] <> 0
+
+ @over IAD[cdai,sne]  = (IA_n[cdai,sne] - IAM[cdai,sne]>0)*(IA_n[cdai,sne] - IAM[cdai,sne])+(IA_n[cdai,sne] - IAM[cdai,sne]<=0)*0.00001 if IAD[cdai, sne] <> 0
+
+ IA_bis_dgt[cdai,sne] = IAD[cdai,sne] + IAM[cdai,sne]
+ verif_IA_dgt[cdai,sne] = IA_n[cdai,sne] - IA_bis_dgt[cdai,sne]
+
+	#services
+ d(log(IAM_des_n[cservex,sne])) = 0.25*dlog(IAM_des_n[cservex,sne]{-1}) + 1.18*dlog(QD[cservex]) - 0.34*d(log(PIAM[cservex]{-1})-log(PIAD[cservex]{-1})) - 0.49*(log(IAM_des_n[cservex,sne]{-1}) - log(IA_n[cservex,sne]{-1}) + 0.69*(log(PIAM[cservex]{-1})-log(PIAD[cservex]{-1}))) if IAM_des_n[cservex,sne] <> 0
+ 
+ IAM_des[cservex,sne] = IAM_des[cservex,sne]{-1}*((1 + (QMexo[cservex]>0)*(d(QMexo[cservex])/QMexo[cservex]{-1})))*(@year<=2019)  + ((IAM_des[cservex,sne]{-1}*(1+d(IAM_des_n[cservex,sne])/IAM_des_n[cservex,sne]{-1})>0)*(IAM_des[cservex,sne]{-1}*(1+d(IAM_des_n[cservex,sne])/IAM_des_n[cservex,sne]{-1}))+(IAM_des[cservex,sne]{-1}*(1+d(IAM_des_n[cservex,sne])/IAM_des_n[cservex,sne]{-1})<=0)*0.00001)*(@year>2019) if IAM_des[cservex,sne] <> 0
+ 
+ @over IAM[cservex,sne] = IAM[cservex,sne]{-1}*((1 + (QMexo[cservex]>0)*(d(QMexo[cservex])/QMexo[cservex]{-1})))*(@year<=2019)   + ((IA_n[cservex,sne] - IAM_des[cservex,sne]>0)*(IAM_des[cservex,sne])+(IA_n[cservex,sne] - IAM_des[cservex,sne]<=0)*(IA_n[cservex,sne]-0.00001))*(@year>2019) if IAM[cservex,sne] <> 0
+ 
+ @over IAD[cservex,sne]  = (IA_n[cservex,sne] - IAM[cservex,sne]>0)*(IA_n[cservex,sne] - IAM[cservex,sne])+(IA_n[cservex,sne] - IAM[cservex,sne]<=0)*0.00001 if IAD[cservex, sne] <> 0
+
+ IA_bis_dgt[cservex,sne] = IAD[cservex,sne] + IAM[cservex,sne]
+ verif_IA_dgt[cservex,sne] = IA_n[cservex,sne] - IA_bis_dgt[cservex,sne]
+
+	#énergies
+#Il n y a pas d importations d investissements énergétiques
+
+
+#equilibre comptable OK gain 2.5 
+
+#### TAUX DE MARGE ####
+
+# Utilisation de la définition du taux de marge de la V3 pour tous les secteurs non-énergétiques et V2 pour les secteurs énergétiques à cause de problème de valeur négative
+
+#à peut-être enlever
+@over dlog(1+TMD_n[se]) = (0.4 * ( dlog(Y[se]) -dlog(Y_e[se]{-1})))*(@year<=2019) + (@year>2019) * ((TMD_n[se]{-1}>0.01)*(0.9 * ( dlog(Y[se]) -dlog(Y_e[se]{-1})))+(TMD_n[se]{-1}<=0.01)*(0.000001)) if Y[se] > 0 
+
+# TMD de la v3
+@over dlog(1+TMD_n_01) = (0.4 * ( dlog(Y_01) -dlog(Y_e_01{-1})))*(@year<=2019) + ((TMD_n_01{-1}>0.01)*(0.75 * d(log(CUR_test_01))) + (TMD_n_01{-1}<=0.01)*(0.000001)) * (@year > 2019) if Y_01 > 0
+@over dlog(1+TMD_n[sind]) = (0.4 * ( dlog(Y[sind]) -dlog(Y_e[sind]{-1})))*(@year<=2019) + ((TMD_n[sind]{-1}>0.01)*(0.75 * d(log(CUR_test[sind]))) + (TMD_n[sind]{-1}<=0.01)*(0.000001)) * (@year > 2019) if Y[sind] > 0
+@over dlog(1+TMD_n[trsp]) = (0.4 * ( dlog(Y[trsp]) -dlog(Y_e[trsp]{-1})))*(@year<=2019) + ((TMD_n[trsp]{-1}>0.01)*(0.75 * d(log(CUR_test[trsp]))) + (TMD_n[trsp]{-1}<=0.01)*(0.000001)) * (@year > 2019) if Y[trsp] > 0
+@over dlog(1+TMD_n[ster]) = (0.4 * ( dlog(Y[ster]) -dlog(Y_e[ster]{-1})))*(@year<=2019) + ((TMD_n[ster]{-1}>0.01)*(0.75 * d(log(CUR_test[ster]))) + (TMD_n[ster]{-1}<=0.01)*(0.000001)) * (@year > 2019) if Y[ster] > 0
+
+@over dlog(1+TMD_n[sne]) = (0.4 * ( dlog(Y[sne]) -dlog(Y_e[sne]{-1})))*(@year<=2019) + ((TMD_n[sne]{-1}>0.01)*(0.75 * d(log(CUR_test[sne]))) + (TMD_n[sne]{-1}<=0.01)*(0.000001)) * (@year > 2019) if Y[sne] > 0
+
+
+CUR_test[sne] = Y[sne] / YCAP_test[sne] if YCAP_test[sne] > 0
+
+d(log(YCAP_test[sne])) = ((CL[sne]{-1} * PROG_L[sne]{-1} * L[sne]{-1})/(CU[sne]{-1} * Y[sne]{-1})) * d(log(L[sne] * PROG_L[sne])) + ((CK[sne]{-1} * K[sne]{-1})/(CU[sne]{-1} * Y[sne]{-1})) * d(log(K[sne] * PROG_K[sne])) + ((PE[sne]{-1} * E[sne]{-1})/(CU[sne]{-1} * Y[sne]{-1})) * d(log(E[sne] * PROG_E[sne])) + ((PMAT[sne]{-1} * MAT[sne]{-1})/(CU[sne]{-1} * Y[sne]{-1})) * d(log(MAT[sne])) if Y[sne] > 0							
+
+#équilibre comptable OK, gain de <pib 2.6
+
+#### MODIFICATION DES EQUATIONS DE SALAIRES ####
+
+#### AJUSTER LES COEFFICIENTS SI BESOIN, EXOGENEISATION COMPLETE DU CFS DANS LE NOTIONNEL ####
+
+@over d(log(W_S[se]))  = (ADJUST(18 , 1) * d(log(W_S_n[se])) + ( 1 - ADJUST(18 , 1) ) * d(log(W_S[se]{-1})) - ADJUST(18 , 2) * (log(W_S[se]{-1}/W_S_n[se]{-1}))) * (@year <= 2019) + (1 * d(log(P)) + 0.42 * d(log(PROG_L[se])) - 0.7 * d(UnR_TOT) - 0.27 * (log((W_S[se]{-1})/W_S_n[se]{-1})))* (@year > 2019) # calibrage sur l'équation des salaires des travailleurs qualifiés (la valeur des coefficients étant de toute façon proche de celle des travailleurs non-qualifiés)
+
+# salaires notionnels: terme chomage en contemporain
+
+@over d(log(W_S_n[sne])) = 1*d(log(PVA)) + 1*d(log(PROG_L[sne])) + 1*d(log(1/((1-TCSS)*(1-TIR[H01]{-1})))) - 2*d(UnR_TOT)      if W_S_n[sne] <> 0
+
+
+# salaires de CT: 
+@over d(log(W_S[sne]))  = (ADJUST(18 , 1) * d(log(W_S_n[sne])) + ( 1 - ADJUST(18 , 1) ) * d(log(W_S[sne]{-1})) - ADJUST(18 , 2) * (log(W_S[sne]{-1}/W_S_n[sne]{-1}))) * (@year <= 2019) + ( 0.5 * d(log(P)) + 0.5 * d(log(P{-1})) + 0.42 * d(log(Y[sne]/L[sne])) - 0.7 * d(UnR_TOT) - 0.27 * (log((W_S[sne]{-1})/W_S_n[sne]{-1})))* (@year > 2019) # calibrage sur l'équation des salaires des travailleurs qualifiés (la valeur des coefficients étant de toute façon proche de celle des travailleurs non-qualifiés)
+
+#équilibre comptable OK, gain de PIB 2.8
+
+#### MODIFICATION PRIX DE PRODUCTION ####
+
+CIdgt[s] = E[s] + MAT[s]
+PCIdgt[s] * CIdgt[s] = PE[s] * E[s] + PMAT[s] * MAT[s]
+
+d(log(PY_des[sdai])) = 0.66 * d(log(PCIdgt[sdai])) + 0.07 * d(log(1 + TMD_n[sdai])) + 0.12 * d(log(NCU_n[sdai])) - 0.17 * (log(PY_des[sdai]{-1}) - log(PY_n[sdai]{-1}))
+d(log(PY_des[sdse])) = 0.49 * d(log(PCIdgt[sdse])) + 0.11 * d(log(1 + TMD_n[sdse])) + 0.24 * d(log(NCU_n[sdse])) + 0.19 * d(log(NCU_n[sdse]{-1})) - 0.09 * (log(PY_des[sdse]{-1}) - log(PY_n[sdse]{-1}))
+d(log(PY_des[sdsa])) = 0.36 * d(log(PY_des[sdsa]{-1})) + 0.11 * d(log(PCIdgt[sdsa])) + 0.16 * d(log(1 + TMD_n[sdsa])) - 0.06 * (log(PY_des[sdsa]{-1}) - log(PY_n[sdsa]{-1}))
+d(log(PY_des[se])) = 0.70 * d(log(PCIdgt[se])) - 0.26 * (log(PY_des[se]{-1}) - log(PY_n[se]{-1}))
+
+@over log(PY[s]) = (@year <= 2019) * (ADJUST(17, 1) * log(PY_n[s]) + (1 - ADJUST(17, 1)) * (log(PY[s]{-1}) + d(log(PY_e[s])))) + (@year > 2019) * ( log(PY[s]{-1}) + d(log(PY_des[s])))
+
+#A discuter
+#équilibre comptable OK gain de PIB 3.1
+
+#### MODIFICATION DYNAMIQUE DEMANDE DE TRAVAIL ####
+
+d(log(L_des[sne])) = 0.20 * d(log(L_des[sne]{-1})) + 0.49 * d(log(Y[sne])) - 0.5 * d(log(CL[sne]*PROG_L[sne]/PY[sne])) - 0.64 *(log(L_des[sne]{-1})-log(L_n[sne]{-1}))
+@over log(|V|[sne]) = (@year<= 2019) * (ADJUST(1 + $V, 1) * log(|V|_n[sne]) + (1 - ADJUST(1 + $V, 1)) * (log(|V|[sne]{-1}) + d(log(|V|_e[sne])))) + (@year > 2019) *( log(|V|[sne]{-1}) + d(log(L_des[sne])) ) if |V|[s] <> 0 where V in L
+
+#équilibre comptable OK gain de PIB 3.1
+#### MODIFICATION DYNAMIQUE CONSOMMATION ####
+
+d(log(EXP_des[co,h])) = 0.75 * d(log(ARBINC_VAL[h]/P)) - 0.5 * d(R  - infl_FR) - 0.26 * d(UnR_TOT) - 0.33 * (log(EXP_des[co,h]{-1}) - log(EXP_n[co,h]{-1})) if EXP[co,h] <> 0
+@over log(EXP[co,h]) = log(EXP_n[co,h])*(@year<=2019) +   (log(EXP[co,h]{-1}) + d(log(EXP_des[co,h])))*(@year>2019)    if EXP[co, h] <> 0
+
+#équilibre comptable OK
+#### MODIFICATION DYNAMIQUE DES PRESTATIONS ####
+
+L_SM = L - L_20
+W_SM * L_SM = sum(W_S[s] * L_S[s] + W_SE[s] * L_SE[s] on s in %list_sec_Market)
+
+d(log(PRESOC_DOM_U_TETE_DES)) = 0 - 0.47 * (log(PRESOC_DOM_U_VAL_DES{-1}) - log(W_SM{-1}))
+PRESOC_DOM_U_VAL_DES = PRESOC_DOM_U_TETE_DES * Un_TOT
+@over PRESOC_DOM_U_VAL = (@year<=2019)*(STEADYSTATE(54, 1) * W_S * Un_Tot) + (@year>2019)*(PRESOC_DOM_U_VAL_DES)
+
+# A discuter (je ne comprends pas :)
+
+d(log(PRESOC_DOM_Oth_VAL_DES)) = 0.64*d(log(P)) - 0.64*(log(PRESOC_DOM_Oth_VAL_DES{-1}) - log(P{-1}) - log(PROG_L{-1}) - log(POP_tot))
+@over d(log(PRESOC_DOM_Oth_VAL)) = (@year<=2019)*(STEADYSTATE(53, 1) * d(log(PROG_L)) + d(log(P)) + d(log(POP_tot))) + (@year>2019)*(d(log(PRESOC_DOM_Oth_VAL_DES)))
+
+#équilibre comptable OK gain de PIB 3.2
+#### INTRODUCTION DYNAMIQUE SUR LES EXPORTATIONS ####
+
+d(log(X_n_des[c])) = d(log(WD[c])) + d(SUBST_X[c]) if X[c] <> 0
+
+d(log(X_des[cdai])) = 0.91*d(log(WD[cdai])) - 0.33*d(log(PX[cdai]/(TC*PWD[cdai]))) - 0.27*(log(X_des[cdai]{-1})-log(X_n_des[cdai]{-1})) if X[cdai] <> 0
+@over d(log(X[cdai])) = (@year<=2019)*(d(log(Xexo[cdai]))) + (@year>2019)*(d(log(X_des[cdai]))) if X[cdai] <> 0
+
+d(log(X_des[cservex])) = 0.49*d(log(WD[cservex])) - 0.35*d(log(PX[cservex]/(TC*PWD[cservex]))) - 0.24*(log(X_des[cservex]{-1})-log(X_n_des[cservex]{-1})) if X[cservex] <> 0
+@over d(log(X[cservex])) = (@year<=2019)*(d(log(Xexo[cservex]))) + (@year>2019)*(d(log(X_des[cservex]))) if X[cservex] <> 0
+
+#équilibre comptable OK. Gain de PIB 3.2 
+
+#### MODIFICATION DES FACTEURS D AJUSTEMENT #####
+ 
+@over d(log(Y_e[s])) = 0.3 * d(log(Y_e[s]{-1})) + (1 - 0.3) * d(log(Y[s])) + 0.3 * (log(Y[s]{-1}) - log(Y_e[s]{-1}))
+
+@over d(log(PY_e[s]))  = 0.05  * d(log(PY_e[s]{-1}))  + 0.65  * d(log(PY[s]{-1}))  + 0.3  * d(log(PY_n[s]))
+
+# PY_n en ligne avec la v3
+@over PY_n[sne] = NCU_n[sne] * (1 + TMD_n[sne]) if Y[sne] > 0  #erreur : cette équation engendre un déséquilibre de 0.2 points de PIB à partir de  2017 
+#@over log(PY_n[sne]) = log(NCU_n[sne]) +log(1+TMD_n[sne]) if Y[sne] > 0
+#baisse un peu inflation
+
+#P_e en ligne avec la v3
+@over d(log(P_e))  = 0.3  * d(log(P_e{-1}))  + ( 1  - 0.3 ) * d(log(P{-1}))  
+@over d(log(P_e)) = (@year<=2019) * (ADJUST(68,2)*d(log(P_e{-1})) + (1-ADJUST(68,2))*d(log(P{-1})) - ADJUST(68,6)*log(P_e{-1}/P{-1})) + (@year>2019)* ( 0.3*d(log(P_e{-1})) + (1-0.3)*d(log(P{-1})) - 0.3*log(P_e{-1}/P{-2}))
+
+@over d(log(PARTR_e[sex, age])) = 0.05 * d(log(PARTR_e[sex, age]{-1})) + 0.65 * d(log(PARTR[sex, age]{-1})) + 0.3 * d(log(PARTR_n[sex, age])) if PARTR[sex, age] <> 0
+
+@over d(log(|V|_e[s])) = 0.05 * d(log(|V|_e[s]{-1})) + 0.65 * d(log(|V|[s]{-1})) + 0.3 * d(log(|V|_n[s])) if |V|[s] <> 0 where V in L E MAT
+
+@over log(|V|[c]) = (@year <= 2019) * ( ADJUST(14 + $V, 1) * log(|V|_n[c]) + (1 - ADJUST(14 + $V, 1)) * (log(|V|[c]{-1}) + d(log(|V|_e[c])))) + (@year > 2019) * (0.5 * log(|V|_n[c]) + (1 - 0.5) * (log(|V|[c]{-1}) + d(log(|V|_e[c])))) if |V|[c] <> 0 where V in SD SM
+
+@over d(log(|V|_e[c])) = 0.05 * d(log(|V|_e[c]{-1})) + 0.65 *d(log(|V|[c]{-1})) + 0.3 * d(log(|V|_n[c])) if |V|[c] <> 0 where V in SD SM
+
+#équilibre comptable OK gain de PIB 3.2
+# coefficients d'ajustements: 0.8 partout
+@over SUBST_K_NE[s]  = 0.8  * SUBST_K_NE_n[s]  + ( 1  - 0.8 )  * SUBST_K_NE[s]{-1}
+@over SUBST_K_E[s]  = 0.8  * SUBST_K_E_n[s]  + ( 1  - 0.8 )  * SUBST_K_E[s]{-1}
+@over SUBST_|V|[s] = 0.8 * SUBST_|V|_n[s] + (1 - 0.8) * SUBST_|V|[s]{-1} if |V|[s] <> 0 where V in K L E MAT
+
+@over SUBST_CHD[c]  = 0.8 * SUBST_CHD_n[c]  + ( 1  - 0.8 )  * (SUBST_CHD[c]{-1}) if CHD[c] <> 0
+@over SUBST_CHM[c] = 0.8 * SUBST_CHM_n[c]  + ( 1  - 0.8)  * (SUBST_CHM[c]{-1}) if CHM[c] <> 0
+@over SUBST_GD[c]  = 0.8  * SUBST_GD_n[c]  + ( 1  - 0.8 )  * (SUBST_GD[c]{-1}) if GD[c] <> 0 
+@over SUBST_GM[c]  = 0.8  * SUBST_GM_n[c]  + ( 1  - 0.8 )  * (SUBST_GM[c]{-1}) if GM[c] <> 0
+@over SUBST_X[c] = 0.8 * SUBST_X_n[c] + (1- 0.8) * (SUBST_X[c]{-1}) if X[c] <> 0
+@over SUBST_XD[c] = 0.8  * SUBST_XD_n[c] + (1- 0.8 ) * (SUBST_XD[c]{-1}) if XD[c] <> 0
+@over SUBST_XM[c] = 0.8 * SUBST_GM_n[c] + (1- 0.8 ) * (SUBST_XM[c]{-1}) if XM[c] <> 0
+
+# retrait anticipation dividendes et alignement sur autres coef d'ajustement
+@over DIV_HH_VAL  = 0.8  * DIV_HH_VAL_n  + ( 1  - 0.8 )  *  DIV_HH_VAL{-1}  + 0* d(DIV_HH_VAL_e) 
+@over DIV_GOV_VAL  = 0.8 * DIV_GOV_VAL_n  + ( 1  - 0.8 )  *  DIV_GOV_VAL{-1}  + 0*d(DIV_GOV_VAL_e) 
+# ne change rien
+@over d(log(DIV_|V|_VAL_e)) = 0.05 * d(log(DIV_|V|_VAL_e{-1})) + 0.65 * d(log(DIV_|V|_VAL{-1})) + 0.3 * d(log(DIV_|V|_VAL_n)) where V in HH GOV
+#contrôle comptable OK Gain de PIB 3.1
+# effet compétitivité prix des exportations en ligne avec Mésange (vs ES_ext_choc = 0.4 avant)
+# ES_ext_choc  = 0.4 mais attention aussi dans subst IAM_n MATD_n GD_n CHD_n dans AMS_AME (mais n'est plus appelé)
+@over d(SUBST_X_n[c]) = (@year<=2022)*(-ES_X($c, 1) * d(log(PX[c]) - log(TC*PWD[c]))) _ 
+                        +(@year>2022)*(-ES_X($c, 1)* d(log(PX[c]) - log(TC*PWD[c]))) if X[c] <> 0  #  where c in 05 06 12 13
+#controle comptable OK gain de PIB 3
+### distinction prix courants vs prix constants de prix des énergies fossiles ####
+
+# deflateur au lieu de 2% par an (proxy utilisé par l'ademe pour eviter un plantage
+@over PWD[ce2] = PWD_constant[ce2]*PGDP + choc_fossile[ce2]
+# change pas mal les resultats dans choc d'investissement
+
+
+@over dlog(1+TMD_n[se]) = (0.4 * ( dlog(Y[se]) -dlog(Y_e[se]{-1})))*(@year<=2019) + (@year>2019) * ((TMD_n[se]{-1}>-1)*(0.9 * ( dlog(Y[se]) -dlog(Y_e[se]{-1})))+(TMD_n[se]{-1}<=-1)*(0.000001)) if Y[se] > 0 
+@over dlog(1+TMD_n[sne]) = (0.4 * ( dlog(Y[sne]) -dlog(Y_e[sne]{-1})))*(@year<=2019) + ((TMD_n[sne]{-1}>-1)*(0.75 * d(log(CUR_test[sne]))) + (TMD_n[sne]{-1}<=-1)*(0.000001)) * (@year > 2019) if Y[sne] > 0
+
+#contrôle comptable oK gain de PIB 2.6
+
+#### CORRECTION FORMULE RATIO D'UTILISATION DES CAPACITES
+##! Cost share of input $f$ for sector $s$
+phi_n_K[sne] = K_n[sne] * CK[sne] / (K_n[sne] * CK[sne] + L_n[sne] * PROG_L[sne] * CL[sne] + E_n[sne] * (PE[sne] + PE_CEE_n[sne] + PE_signal_bis[s]) + MAT_n[sne] * PMAT[sne])
+phi_n_L[sne] = L_n[sne] * PROG_L[sne] * CL[sne] / (K_n[sne] * CK[sne] + L_n[sne] * PROG_L[sne] * CL[sne] + E_n[sne] * (PE[sne] + PE_CEE_n[sne] + PE_signal_bis[s]) + MAT_n[sne] * PMAT[sne])
+phi_n_E[sne] = (E_n[sne] * (PE[sne] + PE_CEE_n[sne] + PE_signal_bis[s])) / (K_n[sne] * CK[sne] + L_n[sne] * PROG_L[sne] * CL[sne] + E_n[sne] * (PE[sne] + PE_CEE_n[sne] + PE_signal_bis[s]) + MAT_n[sne] * PMAT[sne])
+phi_n_MAT[sne] = MAT_n[sne] * PMAT[sne] / (K_n[sne] * CK[sne] + L_n[sne] * PROG_L[sne] * CL[sne] + E_n[sne] * (PE[sne] + PE_CEE_n[sne] + PE_signal_bis[s]) + MAT_n[sne] * PMAT[sne])
+
+##! Capacité de production (fonction de production évaluée aux quantités effectives de facteurs, comme dans la V3)
+d(log(YCAP[sne])) = phi_n_L[sne]{-1} * d(log(L[sne] * PROG_L[sne]) ) + phi_n_K[sne]{-1} * d(log(K[sne] * PROG_K[sne]) ) + phi_n_E[sne]{-1} * d(log(E[sne] * PROG_E[sne]) ) + phi_n_MAT[sne]{-1} * d(log(MAT[sne]) ) if YCAP[sne] <> 0
+
+d(log(Yprod[sne])) = phi_l_bis[sne]{-1} * d(log(L[sne] * PROG_L[sne]) ) + phi_k_bis[sne]{-1} * d(log(K[sne] * PROG_K[sne]) ) + phi_e_bis[sne]{-1} * d(log(E[sne] * PROG_E[sne]) ) + phi_mat_bis[sne]{-1} * d(log(MAT[sne]) ) if Yprod[sne] <> 0
+
+d(log(1+TMD_bis[sne])) = ((TMD_bis[sne]{-1}>-1)*(0.75 * (dlog(Y[sne]) - dlog(Y_e[sne]{-1})))) + (TMD_bis[sne]{-1}<=-1)*(0.000001)) if Y[sne] > 0
+
+##! Capacity utilization ratio of the sector $s$
+CUR[sne] = Yprod[sne]/YCAP[sne]
+CUR_bis[sne] = Y[sne]/YCAP[sne]
+@over d(log(CUR_test[sne])) = 0.6 * d(log(CUR_bis[sne])) + 0.3 * d(log(CUR_cible[sne])) - 0.6 * (log(CUR_test[sne]{-1}) - log(CUR_cible[sne]{-1}))
+
+YCAP = sum(YCAP[sne] on sne)
+CUR_bis = Y/YCAP
+d(log(CUR_test)) = 0.6 * d(log(CUR_bis)) + 0.3 * d(log(CUR_cible)) - 0.6 * (log(CUR_test{-1}) - log(CUR_cible{-1}))
+
+#contrôle comptable OK gain de PIB : 2.6
+#### CONSOMMATION DES MENAGES ####
+
+#@over BetaEXP_n[co, h] = (@year <= 2019)*((EXP_n[co, h] - NEXP[co, h]) / EXP_CES_VOL) +  (@year > 2019)*((choc_EXP[co]>=0)*(choc_EXP[co]<=0)*(BetaEXP[co, h]{-1} * (1 + (1 - ES_LES_CES(1, 1)) * dlog(PEXP[co, h] / PEXP_CES[h])+ choc_R_EXP[co])) + (choc_EXP[co] > 0) * (((1+Choc_EXP[co]) * EXP_n[co, h]{-1} - NEXP[co, h]) / ( ARBINC_VAL[h] / P * (1 - MPS_HH[h]) )) + (choc_EXP[co] < 0) * (((1+Choc_EXP[co]) * EXP_n[co, h]{-1} - NEXP[co, h]) / ( ARBINC_VAL[h] / P * (1 - MPS_HH[h]) )))  if BetaEXP_n[co, h] <> 0
+                        
+#@over BetaEXP[co, h] = (@year <= 2019)*(BetaEXP_n[co, h]) + (@year > 2019)*((choc_EXP[co]>=0)*(choc_EXP[co]<=0)*(BetaEXP_n[co, h]) + (choc_EXP[co] > 0) * (BetaEXP_n[co, h]) + (choc_EXP[co] < 0) * (BetaEXP_n[co, h]))  if BetaEXP[co, h] <> 0
+
+EXP_CES_VOL = sum((EXP_n[co, h] - NEXP[co, h] ) on co)
+
+# contrôle comptable OK 2.6
+
+#### POUR L'ACTUALISATION DE LA VAC ####
+
+#dlog(defl_Ttco[ce2]) = dlog(PCH)
+#@over TCO_VAL[ce2, s] = Ttco[ce2] * PCH * EMS_SEC[ce2, s] * (1 - EXO[ce2, s]) + PE_signal_ETS * PCH * EMS_SEC[ce2, s] * EXO[ce2, s]
+#@over TCO_VAL[ce2, s] = (Ttco[ce2] + ETS2) * PCH * EMS_SEC[ce2, s] * (1 - EXO[ce2, s]) + PE_signal_ETS * PCH * EMS_SEC[ce2, s] * EXO[ce2, s]  where s in 14 15 16 17 19 20 #13 
+#@over Ttco_vol[ce2] = Ttco[ce2]
+# erreur la taxe carbone est une assise sur des volumes physiques. 
+
+@over d(TIR[h]) = -d(PHI_TCO[h] * TCO_VAL_HH / DISPINC_AI_VAL[h]) + d(TIR_TREND)
+@over TIS[s] = TIS_exo[s] - (REDIS_VAL_SEC{-1}*PY[s]{-1}*Y[s]{-1}/(PY{-1}*Y{-1}) + TAX_CR_VAL[s])/(PRF[s]{-1} * RF[s]{-1} +0.0000001)
+
+@over PE_signal[sets] * E[sets]  = PE_signal_sec[sets] * E[sets] + CIEE[sets] * E[sets]   if E[sets] > 0 #erreur (log of non positiv number )
+
+
+
+#### CORRECTION DESEQ #####
+@over K_NE_des_n_19  = ( @year <= 2019 )  * ( K_n_19 > 0 )  * K_NE_n_19{-1}  * ( K_n_19/K_n_19{-1} )  + _
+                 ( @year > 2019 )  * (AME_renov_19 *( K_NE_des_n_19{-1} * ( 1 + d(Y_19)/Y_19{-1} - d(PROG_K_19)/prog_K_19{-1} + IMP_BUD_19 * @elem(GDP , %baseyear)/@elem(K_n_19 , %baseyear)  + _
+                  Choc_CSC_19  + d(Inv_IRVE)  / K_n_19{-1} + sobre_19 ) + K_n_19{-1}  * d(SUBST_K_NE_19) ) + _ 
+                       (1- AME_renov_19)*(K_NE_des_n_19{-1}*(1 - tdec_19) + I_NE_19))
+
+@over K_NE_des_n_20  = AME_renov_20 *(K_NE_des_n_20{-1} * ( 1 + d(Y_20)/Y_20{-1} - d(PROG_K_20)/prog_K_20{-1} + d(INV_road)/K_n_20{-1} + _
+                  IMP_BUD_20 * @elem(GDP , %baseyear)/@elem(K_n_20 , %baseyear) + Choc_DACCS) + K_n_20{-1} * d(SUBST_K_NE_20)) + _
+                (1- AME_renov_20)*(K_NE_des_n_20{-1}*(1 - tdec_20) + I_NE_20)
+
+# gain de PIB : 2.6
+
+#### MODIFICATIONS RELATIVES A LA SIMULATIONS DE MA PRIME RENOV' ####
+
+#variables de sorties
+#matières premières non énergétiques par secteur
+MATM_sec[sne] = sum(MATM[cdai,sne] on cdai) + sum(MATM[cservex,sne] on cservex)
+#matières premières  énergétiques par secteur
+EM_sec[s] = sum(EM[eno21,s] on eno21)
+
+#correction double compte de MPR dans le revenu des menages
+# prise en compte des dépenses de rénovation payées comptant dans les depenses de logement : on remplace les depenses de renovation en valeur apres deduction de la subvention par les depenses de renovation avant subvention
+@over EXP_HOUSING_Val[h,ecl] = ( @year > %baseyear ) * ( DEBT_REHAB_Val[h,ecl]{-1} * (R_I_REHAB[h,ecl]{-1} + R_RMBS_REHAB[h,ecl]{-1} ) + R_CASH_REHAB[h,ecl] * RENOV_VAL[ecl]  + DEBT_NewB_Val[h,ecl]{-1} * ( R_I_NewBUIL[h,ecl]{-1} + R_RMBS_NewBUIL[h,ecl]{-1} )  + R_CASH_NewBUIL[h,ecl] * PNewBUIL[h,ecl] * NewBUIL[h,ecl] + PENER_BUIL[h,ecl] * ENER_BUIL[h,ecl] + choc_PAC_VAL[ecl])   + ( @year =< %baseyear ) * EXP_HOUSING_Val[h,ecl]{-1} * ( 1 + STEADYSTATE(1,1) )
+   
+ # dette des menages pour la rénovation : les ménages s'endettent sur une part du montant total des depenses avant subvention et non pas apres subvention  
+@over DEBT_REHAB_Val[h,ecl] = (@year > %baseyear) * ( ( 1 - R_RMBS_REHAB[h,ecl] ) * DEBT_REHAB_Val[h,ecl]{-1}  + R_LOAN_REHAB[h,ecl] * RENOV_VAL[ecl] ) + (@year =< %baseyear) * DEBT_REHAB_Val[h,ecl]{-1} * ( 1 + STEADYSTATE(1,1) )
+
+# subventions CEE et MPR ajoutees au RDB
+@over DISPINC_VAL[h] = DISPINC_AI_VAL[h] - IR_VAL[h] - AIC_VAL[h] + REDIS_VAL_H + SUB_AUTO_VAL + SUB_REHAB_VAL   
+
+# prix moyen pondéré au m2 des depenses de renovation (pondéré par les types de renov) avant subvention
+PREHAB_H01_HS= RENOV_VAL/REHAB_H01
+
+# EXP_13 représente les dépenses en logement a prix constants 2006. Elle evolue en ligne avec les volumes de construction neuve, de renov et autres depenses de logement. 
+# EXP_13 sert a calculer EXP_h01 qui ensuite sert a deduire l'epargne du menage (S_H01  = DISPINC_VAL_H01  - PEXP_H01  * EXP_H) avec PEXP_13_H01 qui capture a la fois les dynamiques de prix et de taux de subvention (variable PREHAB_H01[ecl], prix après subvention).
+# on veut donc EXP_13 en volume  (prix constants 2006 et hors subvention)pour ne pas capturer les dynamiques de prix et de taux de subvention (deja capture dans PEXP)
+
+# 1. on remplace PREHAB_H01 (prix de rénov après subvention) par PREHAB_H01_HS au cas où une subvention existe avant 2006. Actuellement, il n'y a pas de subvention en 2006 donc PREHAB_H01_HS(2006) = PREHAB_H01(2006). 
+# 2. avant 2019 On avait CHD_13  - SUB_REHAB_VAL. pas de sens de soustraire une subvention en valeur. Par conséquent avant 2019 on n'avait pas EXP_13 = CHD_13. De plus la subvention est ensuite deja capturee dans PEXP. Elle était capturée deux fois (dans EXP et dans PEXP) pour deduire l'epargne. 
+
+# consommation de construction a prix constants 2006. 
+EXP_13_des =  @elem(PNewBUIL_H01  , 2006)  * NewBUIL_H01  + @elem(PREHAB_H01_HS, 2006)  * REHAB_H01  + (EXP_13_OTH_Val_H01 )/ PCH_13 + choc_PAC
+
+@over EXP_13_H01  = (EXPexo[13])*(@year<=2019)+(EXP_13_H01{-1} * (1 + d(EXP_13_des)/EXP_13_des{-1}))*(@year>2019) 
+
+# CHD_13 représente la consommation de production domestique de construction avant subvention (MPR et CEE) à prix constants 2006. Variable de comptabilité nationale utilisée pour calculer le PIB. 
+# On veut pas inclure de dynamique de subvention en valeur qui capturerait les dynamiques de prix de renovation dans cette equation a prix constants. on supprime SUB_REHAB_VAL
+@over CHD[13] = ((EXPexo[13]-CHM[13] > 0) * (EXPexo[13] - CHM[13]) + (EXPexo[13] - CHM[13] =< 0) * (0.00001))*(@year<=2019) +(EXP_13-CHM_13)*(@year>2019)     if CHD[13] <> 0
+
+# gain de PIB : 2.7
+####CORRECTION DU CALCUL DES COUTS UNITAIRES DE PRODUCTION ####
+
+PE_CEE[se] = CEE[se]/(Ener[se] + 0.0001)
+PE_CEE_n[se] = CEE[se]/(E_n[se] + 0.0001)
+
+CU_n_des[s] * Y[s] = CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s] + PE_signal_bis[s]) * E_n[s] + PMAT[s] * MAT_n[s] if Y[s] > 0
+  
+CU_des[s]*Y[s] = CK[s]*K[s] + CL[s]*L[s]*PROG_L[s] + (PEner[s] + PE_CEE[s] + PE_signal_bis[s])*Ener[s] + PMAT[s]*MAT[s] if Y[s] > 0
+
+d(log(CU_n_bis[s])) = phi_n_k_bis[s]{-1} * d(log(CK[s]/PROG_K[s])) + phi_n_l_bis[s]{-1} * d(log(CL[s])) + phi_n_e_bis[s]{-1} * d(log((PE[s] + PE_CEE_n[s] + PE_signal_bis[s])/PROG_E[s])) + phi_n_mat_bis[s]{-1} * d(log(PMAT[s])) if Y[s] > 0
+
+phi_n_k_bis[s] = (CK[s] * K_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s] + PE_signal_bis[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+phi_n_l_bis[s] = (CL[s] * PROG_L[s] * L_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s] + PE_signal_bis[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+phi_n_e_bis[s] = ((PE[s] + PE_CEE_n[s] + PE_signal_bis[s]) * E_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s] + PE_signal_bis[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+phi_n_mat_bis[s] = (PMAT[s] * MAT_n[s])/(CK[s] * K_n[s] + CL[s] * L_n[s] * PROG_L[s] + (PE[s] + PE_CEE_n[s] + PE_signal_bis[s]) * E_n[s] + PMAT[s] * MAT_n[s])
+
+d(log(CU_bis[s])) = phi_k_bis[s]{-1} * d(log(CK[s]/PROG_K[s])) + phi_l_bis[s]{-1} * d(log(CL[s])) + phi_e_bis[s]{-1} * d(log((PEner[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s])) + phi_mat_bis[s]{-1} * d(log(PMAT[s])) if Y[s] > 0
+
+phi_k_bis[s] = (CK[s] * K[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s] + PE_signal_bis[s]) * Ener[s] + PMAT[s] * MAT[s])
+phi_l_bis[s] = (CL[s] * PROG_L[s] * L[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s] + PE_signal_bis[s]) * Ener[s] + PMAT[s] * MAT[s])
+phi_e_bis[s] = ((PEner[s] + PE_CEE[s] + PE_signal_bis[s]) * Ener[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s] + PE_signal_bis[s]) * Ener[s] + PMAT[s] * MAT[s])
+phi_mat_bis[s] = (PMAT[s] * MAT[s])/(CK[s] * K[s] + CL[s] * L[s] * PROG_L[s] + (PEner[s] + PE_CEE[s] + PE_signal_bis[s]) * Ener[s] + PMAT[s] * MAT[s])
+
+@over d(log(CU_n[s])) = (@year<=2019) * d(log(CU_n_des[s])) + (@year>2019) * d(log(CU_n_bis[s])) if Y[s] >0
+@over d(log(CU[s])) = (@year<=2019) * d(log(CU_des[s])) + (@year>2019) * d(log(CU_bis[s])) if Y[s] >0 #erreur, ceci n'est pas une équation comptable. Par ailleurs les CEE ne sontpas un coût mais une subvention (sauf pour les secteurs énergétiques)
+
+# A discuter : A quoi correspond PE_signal_bis
+# gain de PIB : 1.8
+#Integration de ces modifications dans les demandes de facteurs 
+
+    @over d(SUBST_K_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * phi_l_bis[s]{-1} _
+     -eta_K_E[s]     * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s] + PE_signal_E[s])/PROG_E[s]))   * phi_e_bis[s]{-1} _
+     -ES_KLEM($s, 3) * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * phi_mat_bis[s]{-1} _
+   if K_n[s] <> 0
+   
+    @over d(SUBST_E_n[s]) = _
+     -eta_K_E[s]     * d(log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s] + PE_signal_E[s])/PROG_E[s]) - log(CK[s]/PROG_K[s]))   * phi_k_bis[s]{-1} _
+     -eta_L_E[s]     * d(log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s]) - log(CL[s]))   * phi_l_bis[s]{-1} _
+     -ES_KLEM($s, 6) * d(log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s]) - log(PMAT[s])) * phi_mat_bis[s]{-1} _
+   if E_n[s] <> 0
+   
+    @over d(SUBST_L_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CL[s]) - log(CK[s]/PROG_K[s]))                  * phi_k_bis[s]{-1} _
+     -eta_L_E[s]     * d(log(CL[s]) - log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s])) * phi_e_bis[s]{-1} _
+     -ES_KLEM($s, 5) * d(log(CL[s]) - log(PMAT[s]))                * phi_mat_bis[s]{-1} _
+   if L_n[s] <> 0
+   
+    @over d(SUBST_MAT_n[s]) = _
+     -ES_KLEM($s, 3) * d(log(PMAT[s]) - log(CK[s]/PROG_K[s]))                * phi_k_bis[s]{-1} _
+     -ES_KLEM($s, 5) * d(log(PMAT[s]) - log(CL[s]))                * phi_l_bis[s]{-1} _
+     -ES_KLEM($s, 6) * d(log(PMAT[s]) - log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s])) * phi_e_bis[s]{-1} _
+   if MAT_n[s] <> 0
+   
+    @over d(SUBST_K_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * phi_l_bis[s]{-1} _
+     -eta_K_E[s]     * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s]))   * phi_e_bis[s]{-1} _
+     -ES_KLEM($s, 3) * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * phi_mat_bis[s]{-1} _
+   if K_n[s] <> 0
+   
+ @over d(SUBST_K_NE_n[s]) = _
+     -ES_KLEM($s, 1) * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * phi_l_bis[s]{-1} _
+     -0     * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_signal[s] + PE_CEE[s] + PE_signal_bis[s])/PROG_E[s]))   * phi_e_bis[s]{-1} _
+     -ES_KLEM($s, 3) * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * phi_mat_bis[s]{-1} _
+   if K_n[s] <> 0
+
+ @over d(SUBST_K_E_n[s]) = _
+     -0 * d(log(CK[s]/PROG_K[s]) - log(CL[s]))                    * phi_l_bis[s]{-1} _
+     -eta_K_E[s]      * d(log(CK[s]/PROG_K[s]) - log((PE[s] + PE_signal[s] + PE_CEE[s] + PE_signal_bis[s] + PE_signal_E[s])/PROG_E[s]))   * phi_e_bis[s]{-1} _
+     -0 * d(log(CK[s]/PROG_K[s]) - log(PMAT[s]))                  * phi_mat_bis[s]{-1} _
+   if K_n[s] <> 0
+   #gain de PIB : 1.8
+#### MODIFICATION DEMANDE ENERGETIQUE DANS LES SERVICES ####
+
+#d(log(E_oth_notionnel[ster]))  = d(log(Y[ster])) + d(SUBST_E[ster]) - d(log(PROG_E[ster]))
+#d(log(E_oth_des_bis[ster])) = d(E_shock_exo[ster]) - 0.6 * (log(E_oth_des_bis[ster]{-1}) - E_shock_exo[ster]{-1} - log(E_oth_notionnel[ster]{-1}))
+#@over d(log(E_oth[ster])) = (@year<=2019) * (d(log(E_oth_n[ster]))) + (@year>2019)* (AME_renov[ster] * (d(log(E_oth_des_bis[ster]))) + (1- AME_renov[ster]) * (d(log(E_oth_n[ster]))))
+@over d(log(E_oth_n[ster])) = d(log(Y[ster])) + d(SUBST_E[ster]) - d(log(PROG_E[ster])) + d(E_shock_exo[ster])
+# A discuter : spécification équivalente à la précédente.
+ 
+#### INTRODUCTION DE RIGIDITES DANS LA CONSTRUCTION ####
+
+#@over d(log(W_S_n_13)) = 1*d(log(PVA)) + 1*d(log(PROG_L_13)) + 1*d(log(1/((1-TCSS)*(1-TIR[H01]{-1})))) + 2*d(log(L_13)-log(L-L_13))      if W_S_n_13 <> 0
+
+#@over d(log(W_S_13))  = (ADJUST(18 , 1) * d(log(W_S_n_13)) + ( 1 - ADJUST(18 , 1) ) * d(log(W_S_13{-1})) - ADJUST(18 , 2) * (log(W_S_13{-1}/W_S_n_13{-1}))) * (@year <= 2019) + ( 0.5 * d(log(P)) + 0.5 * d(log(P{-1})) + 0.42 * d(log(Y_13/L_13)) + 0.7 * d(log(L_13)-log(L-L_13)) - 0.27 * (log((W_S_13{-1})/W_S_n_13{-1})))* (@year > 2019) # calibrage sur l'équation des salaires des travailleurs qualifiés (la valeur des coefficients étant de toute façon proche de celle des travailleurs non-qualifiés)
+# ces deux modifications n'ont pas d'effet significatif. 
+
+#@over dlog(1+TMD_n_13) = (0.4 * ( dlog(Y_13) -dlog(Y_e_13{-1})))*(@year<=2019) + ((TMD_n_13{-1}>0.01)*(1.4 * d(log(CUR_test_13))) + (TMD_n_13{-1}<=0.01)*(0.000001)) * (@year > 2019) if Y_13 > 0
+
+#### CROISSANCE DE L'EFFICACITE ENERGETIQUE ####
+@over GR_PROG_E[s]  = alpha_PROG_E[s]  + alpha_PROG_E_PE[s]  * ( d(log(PE[s] + PE_Signal[s] + PE_CEE[s] + PE_signal_bis[s])) )
+#gain de PIB : 1.6
